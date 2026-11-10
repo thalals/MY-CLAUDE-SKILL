@@ -8,6 +8,11 @@ LOG="$REPO/.sync/sync.log"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOG"; }
 
+# 여러 세션의 훅이 동시에 돌면 하나만 실행한다
+LOCK="$REPO/.sync/.lock"
+mkdir "$LOCK" 2>/dev/null || exit 0
+trap 'rmdir "$LOCK"' EXIT
+
 [ -d "$SRC" ] || { log "중단: 원본 폴더가 없다"; exit 1; }
 # iCloud 가 내려받지 않은 파일(.icloud 자리 표시)이 있으면 삭제로 오인하지 않게 멈춘다
 if find "$SRC" -name "*.icloud" -not -path "*/.Trash/*" | grep -q .; then

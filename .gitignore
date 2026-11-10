@@ -4,3 +4,4 @@ security.md
 *private*
 .sync/sync.log
 style-archive/
+.sync/.lock
