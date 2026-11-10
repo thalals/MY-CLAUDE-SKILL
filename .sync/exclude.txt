@@ -1,0 +1,10 @@
+.git/
+.sync/
+/README.md
+/.gitignore
+security.md
+.DS_Store
+*.icloud
+*.env
+*private*
+style-archive/

@@ -1,0 +1,6 @@
+.DS_Store
+security.md
+*.env
+*private*
+.sync/sync.log
+style-archive/
