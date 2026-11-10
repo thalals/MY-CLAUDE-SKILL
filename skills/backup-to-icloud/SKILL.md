@@ -37,7 +37,8 @@ iCloud 경로: `~/Library/Mobile Documents/com~apple~CloudDocs/claude/`
    - CLAUDE.md 변경: `cp ~/.claude/CLAUDE.md "$ICLOUD/CLAUDE.md"`
    - 새/수정된 스킬: `cp -R ~/.claude/skills/<name>/ "$ICLOUD/skills/<name>/"`
 4. **검증** — 복사 후 `diff` 결과가 비어있는지 확인 (실패 시 즉시 중단/보고)
-5. **결과 보고** — 복사된 항목 목록
+5. **GitHub 동기화** — 복사한 항목이 있으면 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh"` 를 실행한다. iCloud `claude` 폴더를 개인 저장소에 복사해 바뀐 것만 커밋·push 한다. 검증이 실패했으면 실행하지 않는다
+6. **결과 보고** — 복사된 항목 목록과 저장소의 `.sync/sync.log` 마지막 줄
 
 ## 규칙
 

@@ -41,12 +41,14 @@ flowchart LR
     D --> E[Obsidian 볼트]
     C --> F[iCloud claude 폴더]
     G[CLAUDE.md · skills 수정] --> H[backup-to-icloud] --> F
-    F --> I[.sync/sync.sh] --> J[이 저장소]
+    B --> I[.sync/sync.sh]
+    H --> I
+    I --> J[이 저장소]
 ```
 
 ## 자동 동기화
 
-- macOS launchd 작업이 5분마다 `.sync/sync.sh` 를 실행한다.
+- iCloud `claude` 폴더를 바꾸는 두 곳이 끝날 때 `.sync/sync.sh` 를 실행한다: `collect-feedback` 스킬(스타일 반영 뒤), iCloud 백업(`CLAUDE.md`·스킬 복사 뒤, `backup-to-icloud` 스킬과 `CLAUDE.md` 의 백업 규칙). 손으로 고친 것은 다음 실행 때 함께 올라가고, 바로 올리려면 스크립트를 직접 실행한다.
 - 스크립트는 iCloud `claude` 폴더를 이 저장소로 복사하고, 바뀐 파일이 있을 때만 커밋하고 push 한다.
 - `.sync/exclude.txt` 에 적은 파일은 복사하지 않는다(`security.md`, `style-archive/`, `.DS_Store`, `*.env` 등). `style-archive/` 는 압축 전 원본이라 회사 업무 내용이 남아 있어 올리지 않는다.
 - 비밀값으로 보이는 내용이 새로 들어오면 커밋하지 않고 `.sync/sync.log` 에 남긴다.

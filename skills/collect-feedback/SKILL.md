@@ -10,7 +10,7 @@ when_to_use: |
   - 하나의 작업 흐름이 완전히 끝났을 때
   - `/exit`, `/clear` 직전 (CLI가 즉시 처리하므로 그 전에 실행해야 함)
 context: fork
-allowed-tools: Read, Edit, Grep, Glob, Bash(wc:*), Bash(grep:*), Bash(python3:*)
+allowed-tools: Read, Edit, Grep, Glob, Bash(wc:*), Bash(grep:*), Bash(python3:*), Bash(bash:*)
 ---
 
 # Collect Feedback
@@ -73,7 +73,8 @@ allowed-tools: Read, Edit, Grep, Glob, Bash(wc:*), Bash(grep:*), Bash(python3:*)
    보강 vs 신규가 애매하면 **보강**을 택한다 — 유사 규칙의 신규 누적이 파일 비대의 주 원인이다. 수집할 피드백이 없으면 "수집할 피드백이 없습니다" 로 종료한다.
 6. **파일 수정** — Edit 도구로 주제 파일을 업데이트. 보강/신규가 우선순위 테마에 속하면 `index.md` 우선순위 블록의 수치도 갱신 (아래 "우선순위 블록 관리" 참조)
 7. **색인 갱신** — 항목을 더했거나 제목을 바꿨으면 `python3 ~/.claude/skills/collect-feedback/scripts/build_index.py` 를 실행한다. 출력의 파일별 크기와 상한 초과 알림을 보고에 쓴다
-8. **결과 보고** — 아래 "결과 보고 형식" 준수
+8. **GitHub 동기화** — 스타일 폴더를 고쳤으면 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh"` 를 실행한다. iCloud `claude` 폴더를 개인 저장소에 복사해 바뀐 것만 커밋·push 한다. 결과는 저장소의 `.sync/sync.log` 마지막 줄(커밋·push 완료, 변경 없음이면 줄 없음, 중단 사유)로 보고에 한 줄 쓴다. 압축·분할을 적용한 뒤에도 같다
+9. **결과 보고** — 아래 "결과 보고 형식" 준수
 
 ## 항목 작성 규격
 
@@ -113,6 +114,7 @@ allowed-tools: Read, Edit, Grep, Glob, Bash(wc:*), Bash(grep:*), Bash(python3:*)
 1. 새 주제 파일을 머리 형식(`# 제목`, `> 읽는 때: … . 색인은 \`index.md\`.`)으로 만들고 항목을 본문 그대로 옮긴다 (고쳐 쓰지 않는다)
 2. 옮긴 항목을 `"제목" 항목` 으로 가리키던 문장에 파일 이름이 적혀 있으면 고친다 (`grep -rn "<옛 파일 이름>"`)
 3. `build_index.py` 를 실행하고, 옮긴 항목 수 before/after 를 보고한다
+4. 실행 절차 8번의 GitHub 동기화를 실행한다
 
 ### 압축(compaction) 절차 — 사용자 승인 후에만
 

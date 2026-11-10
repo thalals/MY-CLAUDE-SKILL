@@ -29,6 +29,7 @@
 
 - iCloud 경로: `/Users/hyeongminpark/Library/Mobile Documents/com~apple~CloudDocs/claude/`
 - 스킬 백업은 변경된 스킬 디렉토리만 복사 (`cp -r ~/.claude/skills/<skill-name>/ iCloud/claude/skills/<skill-name>/`)
+- iCloud 에 복사한 뒤에는 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh"` 를 실행해 개인 GitHub 저장소(`~/Desktop/hmin/MY-CLAUDE-SKILL`)에도 올린다. 바뀐 것이 없으면 커밋하지 않는다
 
 ## 시스템 사전 (Obsidian record)
 
