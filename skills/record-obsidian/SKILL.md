@@ -40,7 +40,7 @@ description: Use when the user asks to record, save, or organize a conversation 
 - Codex 는 `python3 "<스킬 폴더>/scripts/timeline.py" --session "<Codex jsonl 경로 또는 세션 ID>" --since "MM-DD HH:MM" --span` 으로 읽는다. 원본은 `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` 이며, ID 앞부분으로도 찾는다. 경로를 생략하면 기존처럼 현재 디렉터리의 최근 Claude 세션을 읽는다. 주입된 지침·메타 정보와 중복 미러 이벤트는 제외한다.
 - 단계마다 필요한 도구만 돌린다. 도구 출력과 기억이 다르면 도구를 따른다.
 - 도구를 고치거나 더하면, 볼트 도구는 `record/index-guide` 와 루트 지도에, 스킬 도구는 이 표에 적는다. 스킬 도구를 고치면 스킬 폴더째 iCloud 에 백업한다.
-- `scripts/session_hook.py` 는 Claude 훅 전용이다. SessionEnd 는 사용자 발언 3개 이상인 세션의 마지막 실제 활동 시각·원본 경로·종료 시각을 `~/.claude/record-obsidian/pending.tsv` 에 남긴다. SessionStart 는 timeline.py 와 같은 기준으로 원본의 마지막 활동을 다시 읽어 daily sessions 의 끝 시각과 분 단위로 비교한다. 예전 4열 목록도 원본을 찾으면 보정하고, 원본이 없으면 기존 시각을 유지한다. 14일 보관 기준은 실제 종료 시각이다. 설정은 `~/.claude/settings.json` 이며 Codex 훅 설치는 포함하지 않는다.
+- `scripts/session_hook.py` 는 Claude 훅 전용이고, 2026-11-11 부터 `~/.claude/settings.json` 에 등록하지 않는다. 기록은 사용자가 명령할 때만 하며, 기록하지 않은 세션을 자동으로 검사하거나 기록할지 묻지 않는다. 등록하면 SessionEnd 는 사용자 발언 3개 이상인 세션의 마지막 실제 활동 시각·원본 경로·종료 시각을 `~/.claude/record-obsidian/pending.tsv` 에 남기고, SessionStart 는 timeline.py 와 같은 기준으로 원본의 마지막 활동을 다시 읽어 daily sessions 의 끝 시각과 분 단위로 비교한다. 예전 4열 목록도 원본을 찾으면 보정하고, 원본이 없으면 기존 시각을 유지한다. 14일 보관 기준은 실제 종료 시각이다. Codex 훅 설치는 포함하지 않는다.
 
 ## 1. daily 를 먼저 쓴다
 
