@@ -30,7 +30,7 @@ Jira 티켓 번호를 받아 분석 → 계획 → **단위 테스트 작성 →
 2. **기존 코드 탐색** — 관련 코드를 Grep/Glob으로 찾아 현재 구조 파악
 3. **단위 테스트 대상 식별** — 신규/수정 코드 중 단위 테스트 대상을 먼저 추려낸다
    - 대상: VO / enum / 일급 컬렉션 / Group / 변환·분기·예외·derived properties
-   - 대상 아님: Facade, Controller, Client interface, 단순 위임 Service, 단순 request/response DTO (변환 로직 없음)
+   - 대상 아님: Facade, Controller, Client interface, Service(명시 요청 시에만), 단순 request/response DTO (변환 로직 없음)
 4. **작업 목록 작성 (TaskCreate)** — **단위 테스트 작성 태스크가 구현 태스크보다 먼저 오도록** 순서대로 나열
 5. **사용자 확인** — 계획을 사용자에게 보여주고 확인받은 후 다음 단계 진행
 
