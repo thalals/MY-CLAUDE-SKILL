@@ -15,14 +15,17 @@ Claude Code 를 쓰면서 쌓은 전역 지침, 스킬, 스타일 규칙을 모�
 
 ## 스킬을 쓰는 방식
 
-| 스킬 | 언제 쓰나 | 하는 일 |
-|---|---|---|
-| `jira` | `/jira OMS-1234` 로 티켓 작업을 시작할 때 | 티켓 분석 → 계획 확인 → 단위 테스트 먼저 작성 → 구현 순서로 진행한다 |
-| `collect-feedback` | 작업이 끝났거나 칭찬·지적을 했을 때 | 대화에서 내가 준 피드백을 골라 `style/` 의 주제 파일에 규칙으로 반영하고 색인을 갱신한다 |
-| `record-obsidian` | "기록해줘" 라고 할 때 | 대화를 Obsidian 볼트의 날짜별 기록에 남기고, 코드로 확인한 사실을 시스템 사전에 반영한다 |
-| `collect-worklog` | `/collect-worklog 20260421` 처럼 날짜를 줄 때 | 그날 Slack 대화에서 들어온 업무를 모아 Notion Work Log 에 정리한다 |
-| `backup-to-icloud` | `CLAUDE.md` 나 스킬을 고쳤을 때 | 바뀐 설정을 iCloud `claude` 폴더로 복사한다 |
-| `dance` | `/dance` 또는 기분을 말할 때 | 기분에 맞는 ASCII 춤 애니메이션을 보여 준다 |
+| 스킬 | 언제 쓰나 | 하는 일 | 왜 만들었나 |
+|---|---|---|---|
+| `jira` | `/jira OMS-1234` 로 티켓 작업을 시작할 때 | 티켓 분석 → 계획 확인 → 단위 테스트 먼저 작성 → 구현 순서로 진행한다 | |
+| `collect-feedback` | 작업이 끝났거나 칭찬·지적을 했을 때 | 대화에서 내가 준 피드백을 골라 `style/` 의 주제 파일에 규칙으로 반영하고 색인을 갱신한다 | |
+| `record-obsidian` | "기록해줘" 라고 할 때 | 대화를 Obsidian 볼트의 날짜별 기록에 남기고, 코드로 확인한 사실을 시스템 사전에 반영한다 | |
+| `collect-worklog` | `/collect-worklog 20260421` 처럼 날짜를 줄 때 | 그날 Slack 대화에서 들어온 업무를 모아 Notion Work Log 에 정리한다 | |
+| `pr-summary` | "PR 에 공유하게 정리해줘" 라고 할 때 | 수정한 변경을 이슈 → 원인 → 작업 내용 → 영향 순서의 짧은 마크다운으로 정리한다 | |
+| `backup-to-icloud` | `CLAUDE.md` 나 스킬을 고쳤을 때 | 바뀐 설정을 iCloud `claude` 폴더로 복사한다 | |
+| `dance` | `/dance` 또는 기분을 말할 때 | 기분에 맞는 ASCII 춤 애니메이션을 보여 준다 | |
+
+정확한 호출 조건은 각 스킬 `SKILL.md` frontmatter 의 `description` 이 기준이다. 이 표의 '언제 쓰나' 는 요약이다.
 
 ## 스타일 규칙을 쓰는 방식
 
