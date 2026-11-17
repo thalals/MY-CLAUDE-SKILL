@@ -5,3 +5,15 @@ security.md
 .sync/sync.log
 style-archive/
 .sync/.lock
+__pycache__/
+*.pyc
+*.tgz
+*.tar
+*.tar.*
+*.zip
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.dmg

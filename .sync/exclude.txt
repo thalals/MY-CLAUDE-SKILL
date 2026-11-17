@@ -8,3 +8,15 @@ security.md
 *.env
 *private*
 style-archive/
+__pycache__/
+*.pyc
+*.tgz
+*.tar
+*.tar.*
+*.zip
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.dmg

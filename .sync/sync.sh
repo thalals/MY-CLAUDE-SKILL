@@ -31,6 +31,15 @@ if git diff --cached -U0 | grep -E '^\+' | grep -Eiq "$PATTERN"; then
   log "중단: 비밀값으로 보이는 내용이 있어 커밋하지 않았다"; exit 2
 fi
 
+# 묶음·바이너리 파일은 내용을 검사할 수 없으므로 새로 들어오면 커밋하지 않는다
+BINARY=$(git diff --cached --numstat --no-renames --diff-filter=AM | awk -F'\t' '$1=="-" && $2=="-" {print $3}' | tr '\n' ' ')
+if [ -n "$BINARY" ]; then
+  git reset -q
+  log "중단: 바이너리 파일이 있어 커밋하지 않았다: $BINARY"
+  echo "sync 중단: 바이너리 파일은 올리지 않는다: $BINARY" >&2
+  exit 4
+fi
+
 COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')
 git commit -q -m "sync: $(date '+%Y-%m-%d %H:%M') (${COUNT} files)"
 log "커밋: ${COUNT} files"

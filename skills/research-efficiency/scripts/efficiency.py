@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
-"""효율 연구 측정 도구. Claude Code 세션 원본(jsonl)에서 지시와 반복 절차의 비용을 잰다.
+"""효율 연구실 도구. Claude Code 세션 원본(jsonl)에서 지시와 반복 절차의 비용을 재고(이 파일), 연구 장부를 다룬다(lab.py).
 
-  efficiency.py status [--days N]                   연구 시작: 현황, 열린 방향, 측정 대기 시도, 아직 안 잰 실행
-  efficiency.py base  [--session ID | --project 이름일부] [--save]   늘 실리는 맥락(세션 첫 호출)의 크기와 구성
-  efficiency.py base  --list [--days N] [--project 이름일부]           세션마다 첫 호출 크기(추이)
+재기
   efficiency.py runs  [--skill 이름 ...] [--days N | --session ID] [--turns N] [--save]
                                                     스킬 실행 한 번의 호출 수, 맥락, 종류별 토큰(본 대화 + 서브에이전트)
   efficiency.py stats --skill 이름 ... [--since 날짜] [--until 날짜] [--model 이름일부] [--ctx-below N] [--ctx-above N]
                       [--session ID ...] [--not-session ID ...]
                                                     runs.tsv 의 구간별 중앙값·최소·최대(바꾸기 전후 비교).
                                                     날짜는 "YYYY-MM-DD HH:MM" 까지 줄 수 있고 --until 날짜는 그 날 0시 전까지다
+  efficiency.py trend --skill 이름 ... [--by month|week]
+                                                    runs.tsv 의 기간별 추이(쌓인 측정으로 나아지는지 본다)
+  efficiency.py carry --session ID [--skill 이름 [--nth K] | --agent ID] [--top N] [--list]
+                                                    맥락에 들어온 것과 그것을 다시 읽은 값. --list 는 호출을 차례대로 낸다
   efficiency.py after --session ID --skill 이름 [--nth K] [--n 5]
                                                     실행 뒤의 사용자 발언(정정 요청 수를 세는 품질 확인)
-  efficiency.py total --session ID                  세션 전체에서 본 대화와 서브에이전트가 쓴 것
-  efficiency.py carry --session ID [--skill 이름 [--nth K] | --agent ID] [--top N]
-                                                    맥락에 들어온 것과 그것을 다시 읽은 값
+  efficiency.py base  [--session ID | --project 이름일부] [--save]   늘 실리는 맥락(세션 첫 호출)의 크기와 구성
+  efficiency.py base  --list [--days N] [--project 이름일부]           세션마다 첫 호출 크기(추이)
   efficiency.py reads [--days N]                    지시 파일(스타일, 스킬, 볼트 규칙)을 참조한 횟수
+  efficiency.py total --session ID                  세션 전체에서 본 대화와 서브에이전트가 쓴 것
   efficiency.py check --session ID                  하니스 자체 집계(cost-state)와 이 도구 합계의 차이
 
+장부 (자세한 쓰임은 scripts/lab.py 머리말)
+  efficiency.py status | find | show | new | set | lint | index | close
+
 --save 는 스킬 폴더 research/ 의 runs.tsv(다시 잰 줄은 새 값으로 바꾼다), base.tsv(새 세션만 더한다)에 적는다.
-지표 정의와 함정은 reference/metrics.md 에 있다. 출력에는 명령 설명이 섞이므로 장부에는 숫자만 옮긴다.
+지표 정의와 함정은 reference/metrics.md, 장부 형식은 reference/ledger.md 에 있다. 출력에는 명령 설명이 섞이므로 장부에는 숫자만 옮긴다.
 """
 import argparse
 import json
@@ -55,11 +60,12 @@ PRICES = {
 }
 HAIKU_OVER_100K = (0.50, 0.625, 1, 0.05, 2.50)
 REF = PRICES["claude-opus-5-5"]  # 기준 단가. 모델이 다른 실행을 같은 단가로 쳐서 구조만 견줄 때 쓴다.
+METRICS_VERSION = "1"  # 지표 정의의 판. 실행 구간이나 지표의 정의를 바꾸면 올리고 reference/metrics.md 에 적는다. runs.tsv 의 mv 열에 남는다.
 
 RUN_COLS = ["start_kst", "skill", "session", "how", "cc_version", "model", "main_calls", "ctx_first", "ctx_max",
             "main_cum", "main_read", "main_write", "main_out", "main_think", "main_tools", "first_write",
             "sub_n", "sub_calls", "sub_ctx_max", "sub_cum", "sub_write", "sub_out", "sub_think",
-            "total_cum", "total_usd", "total_ref_usd", "note"]
+            "total_cum", "total_usd", "total_ref_usd", "note", "mv"]
 BASE_COLS = ["start_kst", "session", "project", "cc_version", "first_ctx_tokens", "chars_total", "system", "tools",
              "n_tools", "claude_md_global", "claude_md_project", "memory", "hook", "deferred_tools", "mcp",
              "skills_list", "n_skills", "agents_list", "other"]
@@ -239,8 +245,10 @@ def first_ts(path):
     return None
 
 
-def fresh(path):
-    return time.time() - path.stat().st_mtime < 600
+def recent(calls):
+    """마지막 호출이 10분 안인가. 원본 파일의 수정 시각은 호출이 아닌 줄로도 바뀌므로 호출 시각으로 본다."""
+    cut = (datetime.now(timezone.utc) - timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%S")
+    return any((c["ts"] or "")[:19] >= cut for c in calls)
 
 
 def measure_runs(path, names, turns=1):
@@ -297,7 +305,7 @@ def measure_runs(path, names, turns=1):
         sub = [c for a in seen for c in sub_calls(a)]
         if main or sub:
             runs.append({"skill": inv["skill"], "ts": inv["ts"], "i": start, "how": how, "session": path.stem, "version": version,
-                         "live": (bool(main) and end == 10 ** 12 and fresh(path)) or any(fresh(subs[a]["path"]) for a in seen),
+                         "live": (end == 10 ** 12 and recent(main)) or any(recent(sub_calls(a)) for a in seen),
                          "main": main, "sub": sub, "agents": seen, "subs": subs, "sub_calls": {a: sub_calls(a) for a in seen}})
     return runs
 
@@ -312,8 +320,9 @@ def run_row(run):
             "sub_n": len(run["agents"]), "sub_calls": s["n"], "sub_ctx_max": s["max"], "sub_cum": s["cum"],
             "sub_write": s["write"], "sub_out": s["out"], "sub_think": s["think"], "total_cum": m["cum"] + s["cum"],
             "total_usd": f"{m['usd'] + s['usd']:.2f}", "total_ref_usd": f"{m['ref'] + s['ref']:.2f}",
+            "mv": METRICS_VERSION,
             "note": " · ".join(x for x in ("가격 모르는 모델 있음" if m["unpriced"] + s["unpriced"] else "",
-                                         "원본이 10분 안에 바뀜(진행 중일 수 있음)" if run.get("live") else "") if x)}
+                                         "마지막 호출이 10분 안(진행 중일 수 있음)" if run.get("live") else "") if x)}
 
 
 def line_of(label, a):
@@ -400,6 +409,8 @@ def cmd_runs(a):
     if a.save:
         key = lambda r: (r["start_kst"], r["skill"])
         old, fresh = read_tsv(RESEARCH / "runs.tsv"), {key(r): r for r in rows}
+        for r in old:
+            r["mv"] = r.get("mv") or "1"
         same = [r for r in old if key(r) in fresh]
         changed = sum(1 for r in same if any(str(fresh[key(r)].get(c, "")) != r.get(c, "") for c in RUN_COLS))
         merged = sorted([r for r in old if key(r) not in fresh] + list(fresh.values()), key=key)
@@ -421,6 +432,9 @@ def cmd_stats(a):
     live = sum(1 for r in rows if "진행 중" in r.get("note", ""))
     if live:
         print(f"  진행 중일 수 있는 줄 {live}개가 들어 있다. 끝난 뒤 runs --save 로 다시 재고 본다.")
+    mvs = Counter(r.get("mv") or "1" for r in rows)
+    if len(mvs) > 1:
+        print("  지표 정의의 판이 다른 줄이 섞여 있다: " + ", ".join(f"판 {k} {v}줄" for k, v in sorted(mvs.items())) + ". 같은 판끼리만 견준다.")
     cols = [("total_cum", "누적 입력 합계"), ("total_ref_usd", "기준 단가 환산 $"), ("total_usd", "정가 환산 $"),
             ("main_cum", "본 대화 누적 입력"), ("main_calls", "본 대화 호출"), ("ctx_first", "시작 맥락"),
             ("ctx_max", "본 대화 최대 맥락"), ("first_write", "첫 호출 캐시 쓰기"), ("main_out", "본 대화 출력"),
@@ -429,6 +443,25 @@ def cmd_stats(a):
         v = sorted(float(r[col] or 0) for r in rows)
         f = (lambda x: f"{x:,.2f}") if col.endswith("usd") else (lambda x: f"{int(x):,}")
         print(f"  {label}: 중앙값 {f(statistics.median(v))} · 최소 {f(v[0])} · 최대 {f(v[-1])} · 합 {f(sum(v))}")
+
+
+def cmd_trend(a):
+    """runs.tsv 의 기간별 추이. 진행 중으로 적힌 줄은 뺀다."""
+    rows = [r for r in read_tsv(RESEARCH / "runs.tsv") if r["skill"] in a.skill and "진행 중" not in r.get("note", "")]
+    if not rows:
+        sys.exit("그 스킬의 줄이 runs.tsv 에 없다")
+
+    def period(r):
+        iso = datetime.strptime(r["start_kst"][:10], "%Y-%m-%d").isocalendar()
+        return f"{iso[0]}-W{iso[1]:02d}" if a.by == "week" else r["start_kst"][:7]
+
+    print(f"{', '.join(a.skill)}: {len(rows)}번. 기간 · 횟수 · 기준 단가 환산 중앙값(합) · 누적 입력 중앙값 · 본 대화 호출 중앙값 · 시작 맥락 중앙값 · 서브 호출 중앙값 · 모델")
+    for p in sorted({period(r) for r in rows}):
+        rs = [r for r in rows if period(r) == p]
+        med = lambda col: statistics.median(float(r[col] or 0) for r in rs)
+        print(f"  {p}  {len(rs):>3}번  ${med('total_ref_usd'):.2f} (합 ${sum(float(r['total_ref_usd'] or 0) for r in rs):.2f})  {int(med('total_cum')):>12,}"
+              f"  {med('main_calls'):>5g}  {int(med('ctx_first')):>9,}  {med('sub_calls'):>4g}  "
+              + ", ".join(f"{k.replace('claude-', '')} {v}" for k, v in Counter(r["model"] for r in rs).most_common(3)))
 
 
 def cmd_check(a):
@@ -513,15 +546,25 @@ def cmd_carry(a):
         if len(hits) != 1:
             sys.exit(f"서브에이전트를 하나로 정하지 못했다: {a.agent} → {len(hits)}개")
         calls, what = calls_of(load(subs[hits[0]]["path"]), main=False), f"서브에이전트 {hits[0]}"
+        live = recent(calls)
     elif a.skill:
         runs = measure_runs(path, set(a.skill), a.turns)
         if len(runs) < a.nth:
             sys.exit(f"그 스킬 실행은 {len(runs)}번뿐이다")
         run = runs[a.nth - 1]
-        calls = run["main"] or run["sub"]
+        calls, live = run["main"] or run["sub"], run["live"]
         what = f"{run['skill']} 실행 {a.nth}번째 ({kst(run['ts'])}, {'본 대화' if run['main'] else '포크 에이전트'})"
     else:
         calls, what = calls_of(load(path)), "세션 전체(본 대화)"
+        live = recent(calls)
+    if live:
+        print("마지막 호출이 10분 안이다(진행 중일 수 있음). 끝난 뒤 다시 잰 값을 쓴다.")
+    if a.list:
+        print(f"{what}: 호출 {len(calls)}번. 번호 · 맥락 · 직전 호출보다 늘어난 맥락 · 출력(생각) · 도구 수 · 도구")
+        for k, c in enumerate(calls):
+            grown = f"{c['ctx'] - calls[k - 1]['ctx']:+,}" if k else ""
+            print(f"  #{k + 1:<3} {c['ctx']:>9,} {grown:>9} {c['out']:>7,}({c['think']:,}) {len(c['tools'])}  {step_label(c)}")
+        return
     if len(calls) < 2:
         sys.exit("호출이 2번보다 적어 나눌 것이 없다")
     k_n, floor, cum = len(calls), calls[0]["ctx"], sum(c["ctx"] for c in calls)
@@ -754,61 +797,11 @@ def cmd_base(a):
             print("base.tsv 에 1줄 더함")
 
 
-def entries(p):
-    out, cur = [], None
-    if not p.exists():
-        return out
-    for line in p.read_text(encoding="utf-8").splitlines():
-        if line.startswith("## "):
-            cur = {"title": line[3:].strip(), "state": ""}
-            out.append(cur)
-        elif cur is not None and line.startswith("- 상태:"):
-            cur["state"] = line[len("- 상태:"):].strip()
-    return out
-
-
-def cmd_status(a):
-    print(f"지금 {datetime.now(KST).strftime('%Y-%m-%d %H:%M')} KST · 연구 장부 {RESEARCH}")
-    for f in sorted(RESEARCH.glob("*")):
-        print(f"  {f.name}  {f.stat().st_size:,}바이트  {datetime.fromtimestamp(f.stat().st_mtime, KST).strftime('%m-%d %H:%M')} 수정")
-    state = RESEARCH / "state.md"
-    if state.exists():
-        print("\n===== state.md (현황)\n" + state.read_text(encoding="utf-8").rstrip())
-    runs = read_tsv(RESEARCH / "runs.tsv")
-    print("\n===== runs.tsv (스킬 실행 측정)")
-    for skill in sorted({r["skill"] for r in runs}):
-        rs = [r for r in runs if r["skill"] == skill]
-        print(f"  {skill}: {len(rs)}번 ({rs[0]['start_kst'][:10]} ~ {rs[-1]['start_kst'][:10]}),"
-              f" 누적 입력 중앙값 {n(int(statistics.median(int(r['total_cum']) for r in rs)))},"
-              f" 정가 환산 중앙값 ${statistics.median(float(r['total_usd']) for r in rs):.2f},"
-              f" 마지막 {n(int(rs[-1]['total_cum']))} ${rs[-1]['total_usd']}" + (" (진행 중일 수 있음)" if "진행 중" in rs[-1].get("note", "") else ""))
-    base = read_tsv(RESEARCH / "base.tsv")
-    if base:
-        print(f"\n===== base.tsv (늘 실리는 맥락, 스냅숏 {len(base)}개 가운데 최근 3개)")
-        for b in sorted(base, key=lambda r: r["start_kst"])[-3:]:
-            print(f"  {b['start_kst'][:16]}  세션 {b['session']}  {b['project']}  첫 호출 {n(int(b['first_ctx_tokens']))} 토큰"
-                  f"  (도구 정의 {n(int(b['tools']))}자 · 스킬 목록 {n(int(b['skills_list']))}자 · 스킬 {b['n_skills']}개)")
-    for name, title in (("directions.md", "개선 방향"), ("attempts.md", "시도")):
-        es = entries(RESEARCH / name)
-        print(f"\n===== {name} ({title} {len(es)}개)")
-        for e in es:
-            print(f"  [{e['state'] or '상태 없음'}] {e['title']}")
-    have = {(r["start_kst"], r["skill"]) for r in runs}
-    new = [r for r in (run_row(x) for x in collect_runs(recent_sessions(a.days), set(user_skills()))) if (r["start_kst"], r["skill"]) not in have]
-    print(f"\n===== 아직 안 잰 실행 (최근 {a.days}일): {len(new)}번")
-    for r in new[:30]:
-        print(f"  {r['start_kst'][:16]}  {r['skill']}  세션 {r['session']}  누적 입력 {n(r['total_cum'])}")
-    live = [r for r in runs if "진행 중" in r.get("note", "")]
-    for r in live:
-        print(f"  진행 중으로 적힌 줄: {r['start_kst'][:16]}  {r['skill']}  세션 {r['session']}")
-    if new or live:
-        print(f"  → runs --days {a.days} --save 로 장부에 더하거나 다시 잰다")
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("status"); p.add_argument("--days", type=int, default=30); p.set_defaults(fn=cmd_status)
+    p = sub.add_parser("trend"); p.add_argument("--skill", nargs="+", required=True); p.add_argument("--by", choices=("month", "week"), default="month")
+    p.set_defaults(fn=cmd_trend)
     p = sub.add_parser("base"); p.add_argument("--session"); p.add_argument("--save", action="store_true")
     p.add_argument("--list", action="store_true"); p.add_argument("--days", type=int, default=14)
     p.add_argument("--project", help="프로젝트 폴더 이름의 일부"); p.set_defaults(fn=cmd_base)
@@ -827,9 +820,11 @@ def main():
     p = sub.add_parser("total"); p.add_argument("--session", required=True); p.add_argument("--top", type=int, default=8); p.set_defaults(fn=cmd_total)
     p = sub.add_parser("carry"); p.add_argument("--session", required=True); p.add_argument("--skill", nargs="*")
     p.add_argument("--nth", type=int, default=1); p.add_argument("--agent"); p.add_argument("--turns", type=int, default=1)
-    p.add_argument("--top", type=int, default=12); p.set_defaults(fn=cmd_carry)
+    p.add_argument("--top", type=int, default=12); p.add_argument("--list", action="store_true"); p.set_defaults(fn=cmd_carry)
     p = sub.add_parser("reads"); p.add_argument("--days", type=int, default=14); p.add_argument("--top", type=int, default=40)
     p.set_defaults(fn=cmd_reads)
+    import lab
+    lab.register(sub, sys.modules[__name__])
     a = ap.parse_args()
     a.fn(a)
 
