@@ -24,7 +24,7 @@ Claude Code 를 쓰면서 쌓은 전역 지침, 스킬, 스타일 규칙을 모�
 | [`collect-worklog`](#collect-worklog) | 그날 Slack 에서 들어온 일을 모아 Notion Work Log 에 적는다 | `/collect-worklog 20260421` |
 | [`collect-feedback`](#collect-feedback) | 대화에서 내가 준 피드백을 스타일 규칙으로 쌓는다 | 작업이 끝났거나 칭찬·지적을 했을 때 |
 | [`record-obsidian`](#record-obsidian) | 대화의 경위와 확인한 시스템 사실을 Obsidian 볼트에 남긴다 | "기록해줘" |
-| [`research-efficiency`](#research-efficiency) | 지시와 반복 절차의 효율을 연구하는 연구실. 회차마다 지난 결과에서 이어서 재고, 알게 된 것을 장부에 쌓는다 | `/research-efficiency 초점` |
+| [`research-efficiency`](#research-efficiency) | 지시와 반복 절차의 효율을 연구하는 연구실. 회차마다 지난 결과에서 이어서 재고, 알게 된 것을 장부에 쌓고, 닫기 전에 연구 방향과 기록과 스킬 자신을 검증해 고친다 | `/research-efficiency 초점` |
 | [`backup-to-icloud`](#backup-to-icloud) | 설정과 스킬을 iCloud 로 복사한다 | 지금은 전역 지침의 백업 규칙이 대신한다 |
 
 ### jira
@@ -164,4 +164,4 @@ flowchart LR
 
 ## 이 문서를 고치는 때
 
-스킬을 더하거나 지웠거나, 스킬이 하는 일이나 단계나 결과물이 달라졌으면 올리기 전에 이 문서의 그 스킬 절과 구성 표를 고친다. 규칙은 전역 `CLAUDE.md` 의 'iCloud 백업 규칙' 에 있다. 마지막으로 스킬과 맞춘 날은 2026-11-17 이다.
+스킬을 더하거나 지웠거나, 스킬이 하는 일이나 단계나 결과물이 달라졌으면 올리기 전에 이 문서의 그 스킬 절과 구성 표를 고친다. 규칙은 전역 `CLAUDE.md` 의 'iCloud 백업 규칙' 에 있다. 마지막으로 스킬과 맞춘 날은 2026-11-18 이다.

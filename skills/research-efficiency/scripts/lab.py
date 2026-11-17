@@ -182,6 +182,10 @@ def problems(E, its):
         for r in refs(it["text"], it["id"]):
             if r not in ids:
                 add("E", "E5", it["id"], f"장부에 없는 번호를 가리킨다: {r}")
+        if k in ("D", "A") and st in OPEN[k]:
+            bad = [r for r in dict.fromkeys(refs(it["text"], it["id"])) if r in ids and r[0] == "F" and state_of(ids[r]) != "유효"]
+            if bad:
+                add("R", "R11", it["id"], "유효하지 않은 사실을 근거로 든다: " + ", ".join(f"{r} [{state_of(ids[r]) or '상태 없음'}]" for r in bad))
         if k == "A" and st == "측정 대기":
             for label, pat, want in (("바꾼 때", r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}$", "YYYY-MM-DD HH:MM"),
                                      ("사전 기준", r"\d+(\.\d+)?$", "숫자만"), ("필요 횟수", r"\d+$", "숫자만")):
@@ -254,7 +258,7 @@ def status(E, a):
         if r is log[-1]:
             print(f"  다음에 할 일: {r['next'] or '적지 않음'}")
             if r["learned"]:
-                print(f"  연구 방법에서 배운 것: {r['learned']}")
+                print(f"  닫기 전에 검증하고 배운 것: {r['learned']}")
 
     print("\n## 판정 대기 시도")
     waiting = [it for it in kinds["A"] if state_of(it) == "측정 대기"]
@@ -281,6 +285,9 @@ def status(E, a):
         print(f"- {it['id']} [{state_of(it)}] {'우선 ' + p.group(0) + ' · ' if p else ''}{get(it, '갈래') or '?'} · {it['title']}")
     if len(opened) > OPEN_SHOWN:
         print(f"- 그 밖 {len(opened) - OPEN_SHOWN}개는 `show --open D` 나 index.md 에서 본다")
+    lab = [it["id"] for it in opened if get(it, "갈래") == "연구실"]
+    if lab:
+        print(f"- 이 스킬을 바꾸자는 열린 방향(갈래 연구실): {', '.join(lab)}. 사용자가 고른 것만 반영한다")
 
     stale = [(it, age_days(it, now.date())) for it in kinds["F"]]
     stale = [(it, age) for it, age in stale if state_of(it) == "낡음" or (state_of(it) == "유효" and age is not None and age > STALE_DAYS)]
@@ -406,11 +413,17 @@ def cmd_set(E, a):
     it = next((x for x in load_items(E) if x["id"] == a.id.upper()), None)
     if it is None:
         sys.exit(f"장부에 없는 번호: {a.id}")
-    new = f"- {a.label}: " + re.sub(r"\s+", " ", " ".join(a.value)).strip()
     lines, old = it["text"].splitlines(), None
+    words, have = [a.label] + a.value, {m.group(1).strip() for ln in lines[1:] for m in [LABEL.match(ln)] if m}
+    label, value = a.label, a.value
+    for k in range(len(words) - 1, 1, -1):  # 따옴표 없이 준 두 단어 이상의 라벨('다시 볼 때')은 있는 라벨 가운데 가장 긴 것으로 읽는다
+        if " ".join(words[:k]) in have:
+            label, value = " ".join(words[:k]), words[k:]
+            break
+    new = f"- {label}: " + re.sub(r"\s+", " ", " ".join(value)).strip()
     for i, ln in enumerate(lines):
         m = LABEL.match(ln)
-        if i and m and m.group(1).strip() == a.label:
+        if i and m and m.group(1).strip() == label:
             old, lines[i] = ln, new
             break
     else:
@@ -441,6 +454,11 @@ def utc(kst_text):
 
 
 def cmd_close(E, a):
+    clean = lambda x: re.sub(r"\s+", " ", x or "").strip()
+    checks = [("방향", clean(a.check_directions)), ("기록", clean(a.check_records)), ("스킬", clean(a.check_skill))]
+    if a.kind != "측정" and not all(v for _, v in checks):
+        sys.exit("닫기 전에 검증한 답이 빠졌다(스킬 본문 '회차' 의 '검증하고 발전시킨다' 단계): " + ", ".join(k for k, v in checks if not v)
+                 + ". --check-directions, --check-records, --check-skill 을 모두 적는다. 종류가 측정이면 없어도 된다.")
     its = load_items(E)
     blocks = [p for p in problems(E, its) if p[0] == "E"]
     if blocks:
@@ -465,10 +483,9 @@ def cmd_close(E, a):
     s = E.agg([c for sub in E.subagents(path).values() for c in E.calls_of(E.load(sub["path"]), main=False) if inside(c)])
     log, key = read_log(E), (path.stem[:8], start)
     old = next((r for r in log if (r["session"], r["start_kst"]) == key), None)
-    clean = lambda x: re.sub(r"\s+", " ", x or "").strip()
     row = {"n": old["n"] if old else max((int(r["n"]) for r in log), default=0) + 1, "start_kst": start, "end_kst": end,
            "session": key[0], "kind": a.kind, "focus": clean(a.focus), "ids": ", ".join(named), "did": clean(a.did),
-           "learned": clean(a.learned), "next": clean(a.next), "calls": m["n"], "sub_calls": s["n"],
+           "learned": " / ".join(f"{k}: {v}" for k, v in checks if v), "next": clean(a.next), "calls": m["n"], "sub_calls": s["n"],
            "cum_in": m["cum"] + s["cum"], "out": m["out"] + s["out"], "usd": f"{m['usd'] + s['usd']:.2f}", "ref_usd": f"{m['ref'] + s['ref']:.2f}"}
     p = E.RESEARCH / "log.tsv"
     p.unlink(missing_ok=True)
@@ -476,7 +493,7 @@ def cmd_close(E, a):
     print(f"{row['n']}회차를 닫았다{'(고쳐 씀)' if old else ''}: 세션 {key[0]} · {start}~{end[11:]} · {a.kind} · 초점 {row['focus']}")
     print(f"  이 회차에 든 것: 본 대화 호출 {m['n']} · 서브에이전트 호출 {s['n']} · 누적 입력 {row['cum_in']:,} · 출력 {row['out']:,}"
           f" · 정가 환산 ${row['usd']} · 기준 단가 환산 ${row['ref_usd']}" + (" · 가격 모르는 모델 있음" if m["unpriced"] + s["unpriced"] else ""))
-    print("  닫은 뒤의 호출은 들어가지 않는다. 더 일했으면 같은 명령으로 다시 닫는다. 남은 일은 스킬 본문 '회차' 7단계의 백업이다.")
+    print("  닫은 뒤의 호출은 들어가지 않는다. 더 일했으면 같은 명령으로 다시 닫는다. 남은 일은 스킬 본문 '회차' 의 '닫는다' 단계에 적힌 백업이다.")
 
 
 def register(sub, E):
@@ -494,5 +511,6 @@ def register(sub, E):
     add("lint", cmd_lint)
     add("index", cmd_index)
     add("close", cmd_close, (("--kind",), {"required": True, "choices": SESSION_KINDS}), (("--focus",), {"required": True}),
-        (("--did",), {"required": True}), (("--next",), {"required": True}), (("--ids",), {}), (("--learned",), {}),
+        (("--did",), {"required": True}), (("--next",), {"required": True}), (("--ids",), {}),
+        (("--check-directions",), {}), (("--check-records",), {}), (("--check-skill",), {}),
         (("--session",), {}), (("--since",), {}), (("--until",), {}))
