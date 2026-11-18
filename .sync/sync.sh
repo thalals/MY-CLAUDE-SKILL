@@ -1,7 +1,17 @@
 #!/bin/bash
 # iCloud claude 폴더를 이 저장소로 복사하고, 바뀐 것이 있으면 커밋·push 한다.
-# 사용: .sync/sync.sh [--no-push]
+# 사용: .sync/sync.sh [-m "무엇을 왜 바꿨는지 한 줄"] [--no-push]
+#   -m 을 주면 커밋 제목이 그 문장이 된다. 안 주면 바뀐 경로로 제목을 만든다. 본문에는 항상 바뀐 파일 목록이 들어간다
 set -euo pipefail
+MESSAGE=""
+PUSH=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -m) MESSAGE="${2:-}"; shift 2 ;;
+    --no-push) PUSH=0; shift ;;
+    *) echo "알 수 없는 인자: $1" >&2; exit 64 ;;
+  esac
+done
 SRC="$HOME/Library/Mobile Documents/com~apple~CloudDocs/claude"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 LOG="$REPO/.sync/sync.log"
@@ -41,8 +51,18 @@ if [ -n "$BINARY" ]; then
 fi
 
 COUNT=$(git diff --cached --name-only | wc -l | tr -d ' ')
-git commit -q -m "sync: $(date '+%Y-%m-%d %H:%M') (${COUNT} files)"
-log "커밋: ${COUNT} files"
-if [ "${1:-}" != "--no-push" ]; then
+# 제목이 없으면 바뀐 경로를 묶어 만든다: skills/<이름>, style/<파일>, 그 밖은 파일 경로
+if [ -z "$MESSAGE" ]; then
+  AREAS=$(git diff --cached --name-only | awk -F/ '$1=="skills"{print $1"/"$2; next} $1=="style"{print $0; next} {print $0}' | awk '!seen[$0]++')
+  AREA_COUNT=$(printf '%s\n' "$AREAS" | wc -l | tr -d ' ')
+  HEAD3=$(printf '%s\n' "$AREAS" | head -3 | paste -sd ',' - | sed 's/,/, /g')
+  if [ "$AREA_COUNT" -gt 3 ]; then HEAD3="$HEAD3 외 $((AREA_COUNT - 3))곳"; fi
+  MESSAGE="sync: $HEAD3"
+fi
+BODY="$(date '+%Y-%m-%d %H:%M') · ${COUNT} files
+$(git diff --cached --name-status)"
+git commit -q -m "$MESSAGE" -m "$BODY"
+log "커밋: ${COUNT} files · $MESSAGE"
+if [ "$PUSH" = 1 ]; then
   git push -q origin main && log "push 완료" || { log "push 실패"; exit 3; }
 fi

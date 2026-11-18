@@ -88,7 +88,7 @@ allowed-tools: Bash(python3 -B ${CLAUDE_SKILL_DIR}/scripts/efficiency.py *)
    - 방향이 유효한가: 열린 방향 가운데 이번에 알게 된 사실이나 유효하지 않게 된 사실(`lint` 의 R11) 때문에 근거를 잃은 것, 답이 이미 나온 것이 있는가. 우선이 높은 방향이 지금 값이 가장 큰 곳(`status` 의 스킬별 값, 판정 대기 시도)을 가리키는가. 근거를 잃은 방향은 근거를 고치거나 보류, 기각으로 닫고, 답이 나온 방향은 완료로 닫는다. 우선을 바꿔야 하면 보고에서 제안한다.
    - 기록이 유효한가: 이번에 쓴 항목의 수치마다 근거에 도구 명령이 있고 횟수와 조건이 붙었는가. 시작 현황, 종합, `find` 로 필요한 선행 연구를 찾았는가. 찾지 못해 다시 잰 것, 틀린 것으로 드러난 사실, 유효하지 않은 사실에 기댄 종합 문장(`lint` 의 R2), 이번에 기댄 사실 가운데 '다시 볼 때' 에 걸린 것을 고친다(정정 줄, 상태, 종합 문장).
    - 이 스킬이 유효한가: 본문의 지시나 도구가 이번 일을 막거나 헛돌게 한 곳이 있는가. 본문과 도구가 어긋난 곳, 임시 스크립트로 낸 값, 쓰지 않은 단계, 빠진 단계를 본다. `status` 의 연구실 성적으로 연구실이 든 값만큼 줄였는지도 본다. 도구와 reference 의 결함, 본문의 틀린 서술은 고치고 그 명령을 다시 돌려 확인한다. 회차 순서, 장부 형식, 규칙을 바꾸는 일은 고치지 않고 `new D`(갈래 연구실)로 올려 보고에서 사용자가 고르게 한다.
-8. 닫는다. `close --kind 종류 --focus "초점" --did "한 일" --next "다음에 할 일" --ids "다룬 번호" --check-directions "방향의 답" --check-records "기록의 답" --check-skill "스킬의 답" --session ${CLAUDE_SESSION_ID}` 를 돌린다. 종류는 구축, 측정, 판정, 탐색, 적용, 종합 가운데 하나다. 차단이 나오면 고치고 다시 닫는다. 그 뒤 스킬 폴더를 iCloud `claude/skills/research-efficiency/` 에 복사하고 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh"` 를 돌린다.
+8. 닫는다. `close --kind 종류 --focus "초점" --did "한 일" --next "다음에 할 일" --ids "다룬 번호" --check-directions "방향의 답" --check-records "기록의 답" --check-skill "스킬의 답" --session ${CLAUDE_SESSION_ID}` 를 돌린다. 종류는 구축, 측정, 판정, 탐색, 적용, 종합 가운데 하나다. 차단이 나오면 고치고 다시 닫는다. 그 뒤 스킬 폴더를 iCloud `claude/skills/research-efficiency/` 에 복사하고 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh" -m "research-efficiency: <초점> <종류> 회차"` 를 돌린다(`-m` 은 커밋 제목).
 9. 보고한다.
 
 재기만 하는 날은 종류를 측정으로 닫고 1, 2, 8, 9만 한다.

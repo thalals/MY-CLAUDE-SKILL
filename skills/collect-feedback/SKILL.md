@@ -73,7 +73,7 @@ allowed-tools: Read, Edit, Grep, Glob, Bash(wc:*), Bash(grep:*), Bash(python3:*)
    보강 vs 신규가 애매하면 **보강**을 택한다 — 유사 규칙의 신규 누적이 파일 비대의 주 원인이다. 수집할 피드백이 없으면 "수집할 피드백이 없습니다" 로 종료한다.
 6. **파일 수정** — Edit 도구로 주제 파일을 업데이트. 보강/신규가 우선순위 테마에 속하면 `index.md` 우선순위 블록의 수치도 갱신 (아래 "우선순위 블록 관리" 참조)
 7. **색인 갱신** — 항목을 더했거나 제목을 바꿨으면 `python3 ~/.claude/skills/collect-feedback/scripts/build_index.py` 를 실행한다. 출력의 파일별 크기와 상한 초과 알림을 보고에 쓴다
-8. **GitHub 동기화** — 스타일 폴더를 고쳤으면 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh"` 를 실행한다. iCloud `claude` 폴더를 개인 저장소에 복사해 바뀐 것만 커밋·push 한다. 결과는 저장소의 `.sync/sync.log` 마지막 줄(커밋·push 완료, 변경 없음이면 줄 없음, 중단 사유)로 보고에 한 줄 쓴다. 압축·분할을 적용한 뒤에도 같다
+8. **GitHub 동기화** — 스타일 폴더를 고쳤으면 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh" -m "style: <반영한 피드백 한 줄>"` 를 실행한다(`-m` 은 커밋 제목). iCloud `claude` 폴더를 개인 저장소에 복사해 바뀐 것만 커밋·push 한다. 결과는 저장소의 `.sync/sync.log` 마지막 줄(커밋·push 완료, 변경 없음이면 줄 없음, 중단 사유)로 보고에 한 줄 쓴다. 압축·분할을 적용한 뒤에도 같다
 9. **결과 보고** — 아래 "결과 보고 형식" 준수
 
 ## 항목 작성 규격

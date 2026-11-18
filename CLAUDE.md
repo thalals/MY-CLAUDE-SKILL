@@ -29,7 +29,7 @@
 
 - iCloud 경로: `/Users/hyeongminpark/Library/Mobile Documents/com~apple~CloudDocs/claude/`
 - 스킬 백업은 변경된 스킬 디렉토리만 복사 (`cp -r ~/.claude/skills/<skill-name>/ iCloud/claude/skills/<skill-name>/`)
-- iCloud 에 복사한 뒤에는 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh"` 를 실행해 개인 GitHub 저장소(`~/Desktop/hmin/MY-CLAUDE-SKILL`)에도 올린다. 바뀐 것이 없으면 커밋하지 않는다
+- iCloud 에 복사한 뒤에는 `bash "$HOME/Desktop/hmin/MY-CLAUDE-SKILL/.sync/sync.sh" -m "<무엇을 왜 바꿨는지 한 줄>"` 를 실행해 개인 GitHub 저장소(`~/Desktop/hmin/MY-CLAUDE-SKILL`)에도 올린다. `-m` 은 커밋 제목이 된다(예: `create-jira-ticket: 호출 문구를 when_to_use 로 옮김`). 빼면 바뀐 경로로 제목을 만든다. 바뀐 것이 없으면 커밋하지 않는다
 - sync.sh 를 실행하기 전에 저장소 루트 `README.md` 를 본다(이 파일은 iCloud 에 없고 저장소에만 있다). 스킬을 더하거나 지웠거나 스킬이 하는 일·단계·결과물이 달라졌으면, 그 스킬 절(무엇 · 필요했던 이유 · 목적 · 단계와 결과물)과 구성 표를 지금 내용으로 고친 뒤 올린다. 달라진 것이 없으면 그대로 둔다
 - iCloud `claude/` 아래에 둔 것은 모두 GitHub 저장소로 올라간다. 볼트 노트, 회사 자료, 그 사본과 묶음(백업 포함)은 이 폴더에 두지 않는다. 볼트는 사용자가 따로 관리한다. 묶음 파일(`*.tgz`, `*.zip` 등)은 복사에서 빠지고, 그 밖의 바이너리가 섞이면 sync.sh 가 커밋하지 않고 멈춘다(종료 코드 4, `.sync/sync.log` 에 이유)
 
