@@ -8,8 +8,8 @@
 - Instant 는 `DateTime` 접미사 금지 — 조회 범위 → `startAt`/`endAt`, 라이프사이클 시점 → `startedAt`/`endedAt`(`createdAt` 결), 호출부 로컬 변수도 통일. `~At` 은 timeline 의 한 점, `~edAt` 은 이미 발생한 시점
 - 인증/시크릿 환경변수는 `_API_KEY`/`_API_SECRET`(Basic Auth 비밀번호도 `_AUTH_PASSWORD` ❌) — YAML 키·데이터 클래스 필드·Secret Manager 키(lowercase)까지 통일해 검색·변경·매핑을 자연스럽게. 외부 시스템의 내부 명칭(api_id 등)도 그대로 쓰지 않고 실제 용도로(시크릿을 담으면 `secret`) — 이름과 용도가 어긋나면 혼란을 만든다
 
-### Enum 네이밍 — 접미사·도메인 맥락·시스템 매핑 패턴 (2026-04-16, 보강 2 · 최근 09-11, 병합 1 · 최근 10-28)
-- `XXType`/`XXStatus`/`XXEvent` 접미사 필수, 단일 명사형도 예외 없음(`XxxConfirmation` ❌). companion 에 `fromName()`/`fromCode()` 팩토리
+### Enum 네이밍 — 접미사·도메인 맥락·시스템 매핑 패턴 (2026-04-16, 보강 3 · 최근 11-18, 병합 1 · 최근 10-28)
+- `XXType`/`XXStatus`/`XXEvent` 접미사 필수, 단일 명사형도 예외 없음(`XxxConfirmation` ❌). companion 에 `fromName()`/`fromCode()` 팩토리 — `private val nameMap = entries.associateBy { it.name }` 색인, `fromName` 은 대문자로 맞춰 찾고 없으면 ClientException, null 이 필요하면 `fromNameOrNull`
 - 범용 이름보다 사용 도메인 이름(배송 도메인의 B2B/B2C 는 `OrderType` ❌ → `DeliveryType`). 시스템별 매핑 enum 은 `{System}{Concept}` — 추가 전 동일 개념의 기존 enum 네이밍 확인, 의미만 맞는 새 이름 금지
 - 값 추가 시 동사 빈도로 고르지 않는다 — 기존 값을 ①자기 객체 조작 ②외부 도메인 사건 두 계열로 가른 뒤 새 값이 속한 계열의 어휘를 따르고, ②면 원인 도메인의 기존 표현(에러 상수·필드명)을 grep 해 동사를 맞춘다
 - **왜:** 다른 계열의 동사는 나란히 놓였을 때 주체를 오독시키고, 일관된 네이밍이 검색·발견을 쉽게 한다
@@ -19,8 +19,8 @@
 - 수식어 명사는 단수(`OPERATOR_CLAIM`)·머리 명사만 복수(`CHANNELS`). "manual" 처럼 뒤 명사에 따라 뜻이 뒤집히는 일반어 대신 코드의 정확한 용어(enum 값 `CS_OPERATOR` → `OPERATOR_CLAIM`). 멤버십 술어는 셋 이름 그대로 `is{…}RequiredChannels()`(임의 단수화 금지)
 - **왜:** 멤버 나열은 브랜드별 동명 채널 포함 여부가 안 보이고 멤버가 바뀌면 이름이 거짓이 된다. 이유가 이름에 있어야 같은 멤버의 두 셋이 왜 둘인지 드러난다
 
-### DTO 네이밍 — 동사형 segment 지양, 클라이언트 메서드명과 일치 (2026-04-16, 보강 1 · 최근 09-28, 병합 1 · 최근 10-28)
-- `Dto` 금지. REST `XXRequest`/`XXResponse`, Kafka `XXMessage`, Spring Event `XXEvent`
+### DTO 네이밍 — 동사형 segment 지양, 클라이언트 메서드명과 일치 (2026-04-16, 보강 2 · 최근 11-18, 병합 1 · 최근 10-28)
+- `Dto` 금지. REST `XXRequest`/`XXResponse`, Kafka `XXMessage`, Spring Event `XXEvent`, 읽기 전용 모델 `XXRead`, QueryDsl 결과 `XXResult`
 - 단순 조회 → `{System}{Resource}Response`, 명시적 액션 있는 응답만 `{System}{Resource}{Action}Response`. `Query`/`Search`/`Get` 같은 동사형 금지 — HTTP 메서드와 중복
 - `{Resource}{Action}` 은 외부 객체명이 아니라 우리 클라이언트 메서드의 행위명 — `upsert{Resource}` 면 `{System}{Resource}UpsertRequest`(외부 객체명 기반 ❌), 재처리 이벤트 enum 도 `UPSERT_{RESOURCE}`
 
@@ -34,8 +34,8 @@
 - 여러 분기에서 쓰는 변수에 `confirmed~` 같은 상태 형용사를 붙이지 않는다 — 기존 이름이라도 내가 추가한 분기(취소 등)에서 거짓이 되면 타입·출처 기반 중립 이름(`{system}OrderResponse`)으로 함께 바꾼다
 - **왜:** 판정 개념은 판정하는 레이어의 것이고, `cancelUnconfirmable{X}(x = confirmed{X})` 처럼 거짓인 이름은 읽는 사람을 오도한다
 
-### 메서드 네이밍 — 조회는 반환 구조, 동사는 호출 의도 (2026-04-16, 보강 2 · 최근 11-02, 병합 1 · 최근 10-28)
-- Service: `getXX`/`getXXs`, Optional 반환 금지, private 도 `get`(`find` ❌). Repository: JpaRepository `findXX`(Optional), 커스텀 `findXX`(nullable), QueryDsl `fetchXX`/`fetchAllXX`
+### 메서드 네이밍 — 조회는 반환 구조, 동사는 호출 의도 (2026-04-16, 보강 3 · 최근 11-18, 병합 1 · 최근 10-28)
+- Service: `getXX`/`getXXs`, Optional 반환 금지, private 도 `get`(`find` ❌). Repository: JpaRepository `findXX`(Optional), 커스텀 `findXX`(nullable), QueryDsl `fetchXX`/`fetchAllXX` — 호출부는 Optional 이면 `orElseThrow`, nullable 이면 `?: throw`
 - 조회/집계는 반환 자료구조가 드러나게 — `get{Value}MapBy{Key}`(그룹핑 맵)·`get{Value}SumBy{Key}`(집계)·`get{Value}(key)`(단건). 주체는 **반환 대상**, 키는 `By{Key}`(`get{Key}()` ❌). 로컬 변수명도 동일, 구조가 바뀌면 동기화
 - `distribute` 는 한 입력을 여러 채널로 흩뿌릴 때만, 단일 시스템 전송/갱신은 `send`/`update` — 같은 도메인 형제 facade 메서드를 grep 해 통일(URL segment/Request DTO 도)
 - `get` 은 이미 있는 값을 꺼낼 때만 — 입력을 조합해 새 값을 만드는 함수(구분자 결합 식별자·포맷 조립)는 `generate{Concept}(a, b)`(`get{Concept}(a, b)` ❌), `get` 이면 호출부가 저장된 값의 조회로 오독한다

@@ -9,8 +9,8 @@
 - `@DynamoDbBean` + `@DynamoDbPartitionKey`/`@DynamoDbSortKey`, `@DynamoDbAttribute("snake_case")`. 커스텀 타입은 `@DynamoDbConvertedBy` + `AttributeConverter`(Spring Bean 주입 불가 — 리플렉션 직접 생성)
 - `DynamoDbEnhancedClient` + `DynamoDbTable`. 조회 `QueryConditional.keyEqualTo()`/`getItem(Key)`, 저장 `putItem`, 삭제 `deleteItem(Key)`
 
-### Avro·토픽 — Update vs Updated 구분 (2026-04-16, 병합 1 · 최근 10-28)
-- Schema `src/main/avro/{domain}/`, Enum 은 String 으로 정의(Kotlin 에서 변환), `newBuilder().setXX().build()`. 토픽은 `{domain}.updated` 형식 — 도메인 액션 기반, 시스템별 네이밍 금지
+### Avro·토픽 — Update vs Updated 구분 (2026-04-16, 보강 1 · 최근 11-18, 병합 1 · 최근 10-28)
+- Schema `src/main/avro/{domain}/`, Enum 은 String 으로 정의(Kotlin 에서 변환), `newBuilder().setXX().build()`(Avro 생성 객체에 `apply` 쓰지 않음). 토픽은 `{domain}.updated` 형식 — 도메인 액션 기반, 시스템별 네이밍 금지
 - `{domain}.update`(인바운드, Consumer 수신) ≠ `{domain}.updated`(아웃바운드, Producer 발행) — Avro 스키마도 별개(`XxxUpdateMessage` vs `XxxUpdatedMessage`). 사용자가 정확한 클래스명을 언급하면 그 이름 그대로 검색(자동 보정 금지), 발행 시 토픽 프로퍼티도 검증
 - **왜:** 필드 구성·발행 토픽이 다르다 — 유사 이름 혼동은 잘못된 흐름 발행으로 이어진다
 

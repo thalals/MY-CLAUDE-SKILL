@@ -2,9 +2,10 @@
 
 > 읽는 때: 단위테스트를 쓰거나 고치거나 실행할 때. 색인은 `index.md`.
 
-### 프레임워크·구조·fixture (2026-07-10, 병합 2 · 최근 11-10)
+### 프레임워크·구조·fixture (2026-07-10, 보강 1 · 최근 11-18, 병합 2 · 최근 11-10)
 - Kotest BehaviorSpec(Service/Entity)·DescribeSpec(Controller/unit), MockK, Fixture Monkey, 테스트 설명은 한국어
 - `context("메소드명 검증")` > `Given("전제")` > `When("조건")` > `Then("결과")` 엄격 준수. Aggregate Root 중심, 하나의 테스트는 하나의 시나리오, 성공/실패 모두
+- fixture 는 시나리오에 필요한 필드만 `setExp`, 연관관계는 `mockk(relaxed = true)`. mock 은 시나리오에 필요한 것만, relaxed 는 필요할 때만. 검증은 비즈니스 결과 먼저, 호출 검증(`verify`)은 중요한 상호작용만 — 애그리게이트 테스트는 하위 엔티티의 연쇄 변경까지 본다
 - 식별자 매칭 + 미발견 예외 로직(`find { it.key == input } ?: throw`)의 단위테스트는 fixture 의 매칭 키를 호출 입력과 동일하게 `set("key", 고정값)` — 랜덤 키는 항상 미발견 예외만 탄다. 여러 엔티티 공존 시 매칭 대상만 입력 키와 일치, 나머지는 다른 키(우연 통과 방지), 미발견 케이스는 어떤 fixture 키와도 안 겹치는 입력. 시그니처에 매칭 파라미터가 늘면 mock stub/verify 인자도 정합
 
 ### 단위테스트 작성 대상 (2026-05-06, 보강 9 · 최근 11-13)
