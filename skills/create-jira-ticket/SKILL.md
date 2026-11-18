@@ -1,6 +1,12 @@
 ---
 name: create-jira-ticket
-description: Use when the user wants a Jira ticket created from an issue source — a QA ticket, story ticket, Slack thread link, or pasted error text — under a parent ticket or in the backlog. Triggers - "하위 티켓 만들어줘", "이 티켓의 하위 티켓으로 작업할거야", "다음 이슈 <링크>", "슬랙 링크 참고해서 티켓 만들어줘", "백로그로 나 할당해서 만들어줘", "티켓 내용 틀렸어". Creates the ticket with a short 이슈 / 원인 / 작업 내용 plan and links the source; does not implement.
+description: Use when the user wants a Jira ticket created from an issue source — a QA ticket, story ticket, Slack thread link, or pasted error text — under a parent ticket or in the backlog. Creates the ticket with a short 이슈 / 원인 / 작업 내용 plan and links the source; does not implement.
+when_to_use: |
+  아래 중 하나라도 해당하면 호출한다.
+  - "하위 티켓 만들어줘", "이 티켓의 하위 티켓으로 작업할거야"
+  - "다음 이슈 <링크>" (앞서 루트 티켓을 받은 세션)
+  - "슬랙 링크 참고해서 티켓 만들어줘", "백로그로 나 할당해서 만들어줘"
+  - "티켓 내용 틀렸어" (이 스킬로 만든 티켓 정정)
 argument-hint: <생성 위치(루트 티켓 링크 | 백로그)> <참고 대상(티켓 | 슬랙 링크 | 에러 문구)>
 ---
 
@@ -16,7 +22,7 @@ QA 티켓·스토리·슬랙 스레드·에러 문구를 읽고 원인을 확인
 | 참고 대상 | Jira 티켓 링크(QA·스토리) / 슬랙 링크 / 붙여넣은 에러 문구 (여러 개 가능) | 묻는다 |
 
 - 루트는 한 번 받으면 세션 동안 기억한다. 이후 "다음 이슈 <링크>" 는 같은 루트 아래로 만든다
-- 요청에 따로 위치를 말하면("백로그로", "OMS-xxxx 하위로") 그 요청만 그 위치로 만든다
+- 요청에 따로 위치를 말하면("백로그로", "PROJ-123 하위로") 그 요청만 그 위치로 만든다
 
 ## 실행 절차
 

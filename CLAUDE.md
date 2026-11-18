@@ -40,5 +40,5 @@
 - 믿는 순서: 지금 코드(origin/develop)·실측 > record > daily history > 저장소 docs·auto memory 의 시스템 사실. 서로 다르면 사용자에게 알린다.
 - record 노트를 근거로 쓰기 전에 frontmatter `basis` 이후 변경을 본다: `git log --oneline <basis sha>..origin/develop -- <paths>`. 저장소 위치: iic-oms `/Users/hyeongminpark/Desktop/iic/iic-oms`, oms-adapter `/Users/hyeongminpark/Desktop/iic/oms-adapter`
 - 지난 작업의 경위는 `daily history/index-guide.md`(시스템별)·`date-guide.md`(날짜별)에서 찾고, 날짜 노트(`daily history/YYYY/MM/YYYY-MM-DD.md`)는 `## ` 줄로 주제를 찾아 그 범위만 읽는다.
-- 대화를 기록하거나 record 를 고칠 때는 `record-obsidian` 스킬로 한다. 규칙 본문은 `daily history/SKILL.md`·`record/SKILL.md` 이고, 구조·규칙·스킬을 바꾸자는 제안은 볼트 루트 `proposals.md` 에 올려 사용자 확인을 받은 뒤 반영한다.
+- 대화를 기록하거나 record 를 고칠 때는 `record-obsidian` 스킬로 한다. 규칙 본문은 `daily history/SKILL.md`·`record/SKILL.md` 이고, 볼트 기록 체계(daily history·record 의 구조·규칙, `record-obsidian` 스킬)를 바꾸자는 제안은 볼트 루트 `proposals.md` 에 올려 사용자 확인을 받은 뒤 반영한다. 다른 스킬·스타일 규칙 변경은 여기에 올리지 않는다(스킬은 style `work/skill.md`).
 - 서브에이전트에 시스템 질문을 맡길 때는 볼트 경로와 입구 경로를 프롬프트에 적는다.
