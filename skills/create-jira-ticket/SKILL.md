@@ -1,5 +1,5 @@
 ---
-name: jira-ticket-create
+name: create-jira-ticket
 description: Use when the user wants a Jira ticket created from an issue source — a QA ticket, story ticket, Slack thread link, or pasted error text — under a parent ticket or in the backlog. Triggers - "하위 티켓 만들어줘", "이 티켓의 하위 티켓으로 작업할거야", "다음 이슈 <링크>", "슬랙 링크 참고해서 티켓 만들어줘", "백로그로 나 할당해서 만들어줘", "티켓 내용 틀렸어". Creates the ticket with a short 이슈 / 원인 / 작업 내용 plan and links the source; does not implement.
 argument-hint: <생성 위치(루트 티켓 링크 | 백로그)> <참고 대상(티켓 | 슬랙 링크 | 에러 문구)>
 ---
