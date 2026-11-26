@@ -133,6 +133,7 @@ def attempt_line(it, runs):
             s += f" (사전 ${pre:.2f} 의 {m / pre:.2f}배)"
         except (ValueError, ZeroDivisionError):
             pass
+        s += f" · 정가 환산 중앙값 ${med(done, 'total_usd'):.2f}(모델을 바꾼 시도는 이 값으로 판정한다)"
     if len(rows) > len(done):
         s += f" · 진행 중으로 적힌 줄 {len(rows) - len(done)}개는 뺐다"
     return s

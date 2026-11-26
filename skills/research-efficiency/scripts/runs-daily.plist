@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- research-efficiency: 모델을 부르지 않고 날마다 스킬 실행을 runs.tsv 에 옮긴다(D-14, A-03).
+     설치: cp 이 파일 ~/Library/LaunchAgents/local.research-efficiency.runs.plist
+           launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.research-efficiency.runs.plist
+     지금 한 번: launchctl kickstart gui/$(id -u)/local.research-efficiency.runs
+     끄기: launchctl bootout gui/$(id -u)/local.research-efficiency.runs
+     로그: ~/Library/Logs/research-efficiency-runs.log (시각 + 저장 결과 한 줄) -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>local.research-efficiency.runs</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>date "+%Y-%m-%d %H:%M:%S"; /opt/homebrew/bin/python3 -B "$HOME/.claude/skills/research-efficiency/scripts/efficiency.py" runs --days 3 --save | tail -1</string>
+	</array>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>23</integer>
+		<key>Minute</key>
+		<integer>50</integer>
+	</dict>
+	<key>StandardOutPath</key>
+	<string>/Users/hyeongminpark/Library/Logs/research-efficiency-runs.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/hyeongminpark/Library/Logs/research-efficiency-runs.log</string>
+	<key>Nice</key>
+	<integer>10</integer>
+</dict>
+</plist>

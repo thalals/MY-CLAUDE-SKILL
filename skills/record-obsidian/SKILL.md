@@ -71,7 +71,7 @@ daily SKILL 의 '절차' 1~7 을 따른다. 8(record 갱신)은 4단계의 서�
 
 ## 4. record 를 서브에이전트에 맡긴다
 
-Agent 도구로 general-purpose 서브에이전트 하나를 띄운다. 대화 fork 가 아니라 새 맥락이어야 호출이 싸다. 프롬프트는 이 순서로 쓴다.
+Agent 도구로 general-purpose 서브에이전트 하나를 `model: "sonnet"` 으로 띄운다. 대화 fork 가 아니라 새 맥락이어야 호출이 싸다. 모델을 적지 않으면 본 대화의 모델로 돌고, 기록 값의 3분의 2를 이 서브에이전트가 쓴다(2026-11-26 연구실 측정, Sonnet 으로 바꾼 효과는 재는 중). 프롬프트는 이 순서로 쓴다.
 1. "record-obsidian 의 record 갱신을 맡는다. 먼저 `<스킬>/reference/record-run.md` 를 읽고 그대로 따른다." (`<스킬>` 은 절대 경로로 쓴다)
 2. 읽을 스타일 주제 파일: 전역 CLAUDE.md 스타일 폴더의 `work/docs-record.md`
 3. "넘김 글:" 뒤에 넘김 글
