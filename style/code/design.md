@@ -34,13 +34,13 @@
 - 비슷한 판정을 기존 술어·묶음에 더하지 않고 같은 enum 안에 형제(EnumSet + 술어)로 새로 두면, 완료 보고에 기존 것을 넓혔을 때 동작이 바뀌는 읽는 곳(`파일:라인`·유형)을 표로 붙인다 — 재사용이 기본값이라 이유가 빠지면 설명 라운드트립이 생긴다 (11-16)
 - **왜:** 같은 판단이 두 진입점에 갈라지면 한쪽만 고쳐지고, encode 와 parse 가 어긋난다
 
-### Spring·라이브러리 동작 함정 — 컴파일·mock 으로 안 잡히는 것 (2026-04-21, 보강 1 · 최근 11-18, 병합 1 · 최근 11-10)
+### Spring·라이브러리 동작 함정 — 컴파일·mock 으로 안 잡히는 것 (2026-04-21, 보강 1 · 최근 11-18, 정정 1 · 최근 11-26, 병합 1 · 최근 11-10)
 - **프록시 자기 호출:** 같은 클래스 안 `this.asyncMethod()` 는 프록시를 우회해 동기 실행 — 별도 클래스로 분리해 DI 로 호출. `@Transactional`/`@Cacheable` 등 프록시 기반 어노테이션 동일(Spring AOP 는 프록시를 통해서만 적용)
 - **`@RequestParam` 의 Kotlin default 무시:** Spring MVC 는 reflection 으로 모든 파라미터를 채워 invoke 해 default 합성 메서드를 거치지 않는다 — `@RequestParam(required = false) param: T?` + 본문 `param ?: 기본값`, 또는 `defaultValue = "..."`(String 만). Kotlin default 와 `?:` 병기 금지
 - **`ExceptionUtils.getRootCause()`:** cause 체인이 없으면 null 이 아니라 throwable 자신을 반환 — cause 가 진짜 있을 때만 채우려면 `ex.cause?.let { }`. "cause 없으면 null" 가정은 dedup 키/알림 필터를 빗나가게 한다
 - **`@ConfigurationProperties` kebab/camelCase 경계:** Binder 는 camelCase 경계로 element 를 나눠 비교 — `fooBarId`(foo-bar-id)와 YAML `foobar-id` 는 element 수가 달라 매칭 실패(default/null). `@Name("foobar-id")` 로 바인딩 키 명시(Spring Boot 3.0+), lowercase 우회 금지. 바인딩이 안 되면 camelCase 경계와 YAML 키 비교부터
 - **`@GetExchange` 는 POJO 를 쿼리 파라미터로 못 펼침:** `@RequestParam request: SomeDto` 는 `ConverterNotFoundException`, 무어노테이션 POJO 는 `No suitable resolver`(런타임에야). 필드별 `@RequestParam("외부키") 도메인명` — 쿼리 키는 `@RequestParam` value 가 결정(`@JsonProperty` 는 바디용), `List<String>` 도 반복 파라미터로 전개. 복합 객체를 단일 쿼리 값으로 보내는 특수 API 만 customArgumentResolver. 서버측 `@GetMapping` 의 ModelAttribute 바인딩과 혼동하기 쉽다
-- **Map Bean 주입의 `@Qualifier`:** 같은 `Map<K, V>` 타입 Bean 이 유일하면 생략(타입 매칭), 여러 개 등록 가능하거나 흔한 타입일 때만 명시, 주입 전 동일 타입 Bean grep — 무조건 명시하면 Bean 이름 변경 시 잘못된 매핑이 늦게 발견된다
+- **Map Bean 주입의 `@Qualifier`:** 같은 `Map<K, V>` 타입 Bean 이 유일하면 생략(타입 매칭). 여럿이어도 생성자 파라미터 이름을 Bean 이름과 같게 두면 생략 — Spring 이 파라미터 이름으로 고르고, 이름이 어긋나면 기동 때 `expected single matching bean but found 2` 로 드러난다. 파라미터 이름을 Bean 이름과 달리 둬야 할 때만 명시, 주입 전 동일 타입 Bean grep — 무조건 명시하면 Bean 이름 변경 시 잘못된 매핑이 늦게 발견된다 (11-26)
 - **트랜잭션 경계:** 이벤트를 다룰 때는 트랜잭션 경계를 먼저 본다 — `@TransactionalEventListener` 는 커밋 뒤에 실행되고, 모듈 간 호출은 트랜잭션 컨텍스트가 다를 수 있다
 
 ### 파라미터는 호출자가 가진 구체 값만 — 파생값·하드코딩·공용 검증 금지 (2026-04-22, 보강 3 · 최근 11-02, 병합 1 · 최근 10-28)

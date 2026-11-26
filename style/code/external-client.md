@@ -7,9 +7,11 @@
 - `@GetExchange` 에 API 전체 경로 명시, baseUrl 은 도메인만 — URL 경로 중복 같은 설정 문제는 코드(`@GetExchange` 경로)로 우회하지 않고 env 파일을 수정(코드를 바꾸면 API 스펙 정의가 왜곡된다)
 - EUC-KR 같은 비표준 인코딩 확인 필수 — interceptor 로깅도 response charset 에 맞게 디코딩
 
-### 브랜드/법인별 추상화 (2026-04-16, 보강 1 · 최근 09-08, 병합 1 · 최근 11-10)
+### 브랜드/법인·접속 대상별 추상화 (2026-04-16, 보강 2 · 최근 11-26, 병합 1 · 최근 11-10)
 - Properties: `Map<BrandType, Config>` 패턴, 단일 브랜드로 시작해도 브랜드별 구조. Properties 는 순수 데이터 클래스 — reverse map/역방향 조회 메서드를 넣지 않고 조회 로직은 사용처에
 - 법인마다 정책이 다른 값 결정(배송 서비스 코드 매핑)의 최상위 분기 축은 carrier 같은 기술 축이 아니라 법인(corporation), carrier 선택은 별도 결정 지점(enum/selector)으로 — 정책의 소유 주체는 비즈니스 주체라 기술 축으로 분기하면 법인별 차이를 표현할 곳이 없다
+- 같은 외부 API 에 접속 대상이 하나 더 생기면(새 도메인·인증키로 전환, 전환기 병행 운영) 경로·스펙이 같은 인터페이스를 나누거나 새로 만들지 않고 같은 인터페이스의 `Map<BrandType, Client>` 빈을 한 벌 더 만든다. 고르는 일은 Selector `select(brand, 기준 시각)` 이 하고 호출부는 접속 대상을 모른다. 경로·스펙이 달라진 API 만 전용 인터페이스로 — 나누면 메서드가 복제되고 Selector 가 돌려줄 타입이 둘이라 호출부마다 분기한다 (11-26)
+- 그 설정은 기존 블록의 하위 필드가 아니라 `external-client.yml` 형제 블록(`{system}-{구분}`) + 같은 필드 모양의 별도 Properties 로, 블록마다 base-url·timeout·secrets 를 갖는다. 로그 client 이름도 기존 `{SYSTEM}_{BRAND}` 그대로 두고 새 접두를 만들지 않는다(두 대상은 요청 URL 호스트로 구분) — 기존 Properties·설정·로그 검색이 바뀌지 않는다 (11-26)
 
 ### 외부 연동 silent 실패 함정 — 응답 body 의 ok/status 필드, ShedLock 의 LockProvider 의존 (2026-05-13, 병합 1 · 최근 11-10)
 - **응답 검증:** Slack 등 다수 API 는 HTTP 200 + `body.ok = false` 로 실패를 알린다 — `isSuccessful` 만 검사하면 silent fail. ①HTTP status ②body 의 `ok`/`status`/`success` 둘 다 통과해야 성공, 실패는 println 이 아니라 `logger.error`
