@@ -5,7 +5,7 @@
   efficiency.py runs  [--skill 이름 ...] [--days N | --session ID] [--turns N] [--save]
                                                     스킬 실행 한 번의 호출 수, 맥락, 종류별 토큰(본 대화 + 서브에이전트)
   efficiency.py stats --skill 이름 ... [--since 날짜] [--until 날짜] [--model 이름일부] [--ctx-below N] [--ctx-above N]
-                      [--session ID ...] [--not-session ID ...]
+                      [--session ID ...] [--not-session ID ...] [--not-run "YYYY-MM-DD HH:MM" ...]
                                                     runs.tsv 의 구간별 중앙값·최소·최대(바꾸기 전후 비교).
                                                     날짜는 "YYYY-MM-DD HH:MM" 까지 줄 수 있고 --until 날짜는 그 날 0시 전까지다
   efficiency.py trend --skill 이름 ... [--by month|week]
@@ -423,6 +423,7 @@ def cmd_stats(a):
     rows = [r for r in read_tsv(RESEARCH / "runs.tsv") if r["skill"] in a.skill
             and (not a.since or r["start_kst"] >= a.since) and (not a.until or r["start_kst"] < a.until)
             and (not a.session or r["session"] in a.session) and (not a.not_session or r["session"] not in a.not_session)
+            and not any(r["start_kst"].startswith(t) for t in (a.not_run or []))
             and (not a.model or a.model in r["model"]) and (a.ctx_below is None or int(r["ctx_first"] or 0) < a.ctx_below)
             and (a.ctx_above is None or int(r["ctx_first"] or 0) >= a.ctx_above)]
     if not rows:
@@ -811,6 +812,7 @@ def main():
     p = sub.add_parser("stats"); p.add_argument("--skill", nargs="+", required=True); p.add_argument("--since", help="YYYY-MM-DD[ HH:MM] 부터")
     p.add_argument("--until", help="YYYY-MM-DD[ HH:MM] 전까지"); p.add_argument("--session", nargs="*", help="이 세션(앞 8자)만")
     p.add_argument("--not-session", nargs="*", help="이 세션(앞 8자)은 빼고"); p.add_argument("--model", help="모델 이름의 일부")
+    p.add_argument("--not-run", nargs="*", help="시작 시각이 이 값(YYYY-MM-DD HH:MM 의 앞부분)으로 시작하는 실행은 빼고. 멈춘 실행, 요청 종류가 다른 실행 하나를 뺄 때")
     p.add_argument("--ctx-below", type=int, help="시작 맥락이 이 값보다 작은 실행만"); p.add_argument("--ctx-above", type=int, help="시작 맥락이 이 값 이상인 실행만")
     p.set_defaults(fn=cmd_stats)
     p = sub.add_parser("check"); p.add_argument("--session", required=True); p.set_defaults(fn=cmd_check)
