@@ -29,6 +29,17 @@
 - 회차에 든 값: `close` 가 잰다. 그 세션에서 회차를 시작한 때(스킬을 부른 때, 또는 `--since`)부터 닫은 때까지의 본 대화 호출과 서브에이전트 호출을 더한다. 닫은 뒤의 호출과 원본에 남지 않는 요청(F-09)은 빠진다.
 - 채택으로 줄인 값: `status` 가 내는 어림. (사전 기준 − 채택 뒤 중앙값) × 채택 뒤 실행 수. 바꾸지 않았다면 사전 중앙값대로 들었을 것이라는 가정이 들어 있다.
 
+## 회차 결과 수치 (snapshots.tsv)
+
+회차를 닫은 때(end_kst)를 기준으로 낸다. 값의 $ 는 소수 둘째 자리까지다.
+
+- lab.rounds: 그때까지의 회차 수. lab.usd_cum, lab.ref_cum: 그때까지 회차에 든 값의 합(정가 환산, 기준 단가 환산, log.tsv). lab.round_ref: 그 회차에 든 기준 단가 환산.
+- runs.rows: 그때까지 시작한 runs.tsv 의 줄 수.
+- skill.count_30d, skill.ref_median_30d, skill.ref_sum_30d, skill.usd_median_30d, skill.usd_sum_30d(key 는 스킬): 닫은 때 앞 30일에 시작한 실행(진행 중으로 적힌 줄 제외)의 횟수, 기준 단가 환산 중앙값과 합, 정가 환산 중앙값과 합.
+- attempt.runs_after, attempt.ref_median_after, attempt.usd_median_after(key 는 시도 번호): 대상 스킬이 있는 시도의 바꾼 때부터 닫은 때까지의 실행 수와 중앙값. 멈춘 실행도 섞인다. 판정은 시도에 적은 명령으로 한다.
+- items.F, items.D, items.A(key 는 상태 말): 닫은 때 상태별 항목 수. knowledge.lines: 종합 줄 수. 이 둘은 닫을 때만 적고 backfill 에는 없다.
+- runs.tsv 의 줄은 다시 잴 때 새 값으로 바뀌므로, backfill 과 나중 회차의 스킬 값은 닫은 그 순간의 값이 아니라 지금 runs.tsv 로 그때를 다시 낸 값이다.
+
 ## 실행 구간
 
 - 스킬 실행은 스킬을 부른 지점(`/이름` 명령이나 Skill 도구 호출)부터 다음 사용자 발언 전까지의 본 대화 호출과, 그 안에서 띄운 서브에이전트(그 서브에이전트가 띄운 것 포함)다.

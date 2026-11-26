@@ -17,7 +17,7 @@ from pathlib import Path
 SKILL = Path(__file__).resolve().parent.parent
 NOTICE = ("평가 사본이다. 장부는 이 스킬 폴더 안에서만 고친다. 다른 스킬, 설정, 볼트, iCloud, 저장소는 건드리지 않고 sync.sh 도 돌리지 않는다."
           " 사용자에게 물을 수 없으니 정할 것은 보고에 남긴다. 보고 끝에 이 스킬을 따르다 걸린 곳을 적는다.")
-BACKUP = re.compile(r"그 뒤 스킬 폴더를 iCloud .*?를 돌린다\.")
+BACKUP = re.compile(r"그 뒤 스킬 폴더를 iCloud .*?\(`-m` 은 커밋 제목\), ")  # 9단계(보고한다)의 백업. 보고문을 남긴 뒤, 보고를 보이기 전
 SKILLS = ["record-obsidian", "collect-feedback", "collect-worklog", "jira", "pr-summary"]
 METRICS = [("본 대화 호출", 8, 60), ("시작 맥락", 40000, 600000), ("서브에이전트 호출", 5, 70),
            ("첫 호출 캐시 쓰기", 5000, 500000), ("출력 토큰", 5000, 200000), ("누적 입력", 500000, 30000000)]
@@ -57,7 +57,7 @@ def main():
     md = dest / "SKILL.md"
     text = md.read_text(encoding="utf-8")
     text, k1 = re.subn(r"^name: .*$", f"name: {a.name}", text, count=1, flags=re.M)
-    text, k2 = BACKUP.subn(NOTICE, text, count=1)
+    text, k2 = BACKUP.subn(NOTICE + " 그 뒤 ", text, count=1)
     text, k3 = re.subn(r"^(# research-efficiency\n)", rf"\1\n> {NOTICE}\n", text, count=1, flags=re.M)
     if not (k1 and k2 and k3):
         sys.exit(f"스킬 본문에서 바꿀 자리를 찾지 못했다(이름 {k1}, 백업 문장 {k2}, 제목 {k3}). 본문이 바뀌었으면 이 도구도 고친다.")

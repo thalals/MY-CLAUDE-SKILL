@@ -17,6 +17,7 @@
 import re
 import statistics
 import sys
+from pathlib import Path
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
@@ -235,6 +236,8 @@ def problems(E, its):
     log = read_log(E)
     if log and not log[-1].get("next"):
         add("R", "R10", "log.tsv", "지난 회차가 '다음에 할 일' 을 남기지 않았다")
+    if log and not report_path(E, log[-1]["n"]).exists():
+        add("R", "R12", "reports", f"{log[-1]['n']}회차의 보고문이 없다. `report --file 경로` 로 남긴다")
     return out
 
 
@@ -491,10 +494,199 @@ def cmd_close(E, a):
                "learned": " / ".join(f"{k}: {v}" for k, v in checks if v), "next": clean(a.next), "calls": m["n"], "sub_calls": s["n"],
                "cum_in": m["cum"] + s["cum"], "out": m["out"] + s["out"], "usd": f"{m['usd'] + s['usd']:.2f}", "ref_usd": f"{m['ref'] + s['ref']:.2f}"}
         E.rewrite_tsv(E.RESEARCH / "log.tsv", LOG_COLS, sorted([r for r in log if r is not old] + [row], key=lambda r: int(r["n"])))
+    save_snapshot(E, row["n"], snapshot(E, row["n"], end, live=True))  # 잠금 밖에서 부른다. save_snapshot 이 따로 잠그므로 안에서 부르면 제 잠금에 막힌다(12회차 S1)
     print(f"{row['n']}회차를 닫았다{'(고쳐 씀)' if old else ''}: 세션 {key[0]} · {start}~{end[11:]} · {a.kind} · 초점 {row['focus']}")
     print(f"  이 회차에 든 것: 본 대화 호출 {m['n']} · 서브에이전트 호출 {s['n']} · 누적 입력 {row['cum_in']:,} · 출력 {row['out']:,}"
           f" · 정가 환산 ${row['usd']} · 기준 단가 환산 ${row['ref_usd']}" + (" · 가격 모르는 모델 있음" if m["unpriced"] + s["unpriced"] else ""))
-    print("  닫은 뒤의 호출은 들어가지 않는다. 더 일했으면 같은 명령으로 다시 닫는다. 남은 일은 스킬 본문 '회차' 의 '닫는다' 단계에 적힌 백업이다.")
+    print(f"  회차 결과 수치를 snapshots.tsv 에 적었다. {write_vault(E)}")
+    print("  닫은 뒤의 호출은 들어가지 않는다. 더 일했으면 같은 명령으로 다시 닫는다. 남은 일은 스킬 본문 '회차' 의 '보고한다' 단계(보고문을 report 로 남기기, 백업)다.")
+
+
+# ---------- 회차 결과 수치(snapshots.tsv) ----------
+SNAP_COLS = ["n", "end_kst", "metric", "key", "value", "src"]
+
+
+def snapshot(E, n, end, live):
+    """회차가 끝난 때(end, KST 'YYYY-MM-DD HH:MM')의 결과 수치. live 가 아니면(지난 회차 되살리기) 지금 상태만 알 수 있는 항목 수와 종합 줄 수는 뺀다."""
+    out, n, end = [], int(n), end[:16]
+    add = lambda metric, key, value: out.append({"n": n, "end_kst": end, "metric": metric, "key": key, "value": value,
+                                                 "src": "close" if live else "backfill"})
+    log = [r for r in read_log(E) if int(r["n"]) <= n]
+    add("lab.rounds", "-", len(log))
+    add("lab.usd_cum", "-", f"{sum(float(r['usd'] or 0) for r in log):.2f}")
+    add("lab.ref_cum", "-", f"{sum(float(r['ref_usd'] or 0) for r in log):.2f}")
+    me = next((r for r in log if int(r["n"]) == n), None)
+    if me:
+        add("lab.round_ref", "-", me["ref_usd"])
+    runs = [r for r in E.read_tsv(E.RESEARCH / "runs.tsv") if r["start_kst"][:16] <= end]
+    add("runs.rows", "-", len(runs))
+    since = (datetime.strptime(end, "%Y-%m-%d %H:%M") - timedelta(days=30)).strftime("%Y-%m-%d %H:%M")
+    done = [r for r in runs if r["start_kst"][:16] > since and "진행 중" not in r.get("note", "")]
+    for skill in sorted({r["skill"] for r in done}):
+        rs = [r for r in done if r["skill"] == skill]
+        add("skill.count_30d", skill, len(rs))
+        for col, name in (("total_ref_usd", "ref"), ("total_usd", "usd")):
+            add(f"skill.{name}_median_30d", skill, f"{med(rs, col):.2f}")
+            add(f"skill.{name}_sum_30d", skill, f"{sum(float(r[col] or 0) for r in rs):.2f}")
+    for it in load_items(E, "A"):
+        skill, since_a = get(it, "대상 스킬") or "없음", (get(it, "바꾼 때") or "")[:16]
+        if skill == "없음" or not since_a or since_a > end:
+            continue
+        rs = [r for r in runs if r["skill"] == skill and r["start_kst"][:16] >= since_a and "진행 중" not in r.get("note", "")]
+        add("attempt.runs_after", it["id"], len(rs))
+        if rs:
+            add("attempt.ref_median_after", it["id"], f"{med(rs, 'total_ref_usd'):.2f}")
+            add("attempt.usd_median_after", it["id"], f"{med(rs, 'total_usd'):.2f}")
+    if live:
+        its = load_items(E)
+        for k in KINDS:
+            c = Counter(state_of(it) for it in its if it["id"][0] == k)
+            for s in STATES[k]:
+                add(f"items.{k}", s, c.get(s, 0))
+        kn = E.RESEARCH / "knowledge.md"
+        if kn.exists():
+            add("knowledge.lines", "-", len(kn.read_text(encoding="utf-8").splitlines()))
+    return out
+
+
+def save_snapshot(E, n, rows):
+    p = E.RESEARCH / "snapshots.tsv"
+    with E.ledger_lock():
+        old = [r for r in E.read_tsv(p) if int(r["n"]) != int(n)]
+        E.rewrite_tsv(p, SNAP_COLS, sorted(old + rows, key=lambda r: (int(r["n"]), r["metric"], r["key"])))
+
+
+def cmd_snapshot(E, a):
+    """지난 회차의 결과 수치를 runs.tsv 와 log.tsv 로 되살린다(이미 있는 회차는 건너뛴다)."""
+    have = {r["n"] for r in E.read_tsv(E.RESEARCH / "snapshots.tsv")}
+    made = [r["n"] for r in read_log(E) if r["n"] not in have]
+    for r in read_log(E):
+        if r["n"] in made:
+            save_snapshot(E, r["n"], snapshot(E, r["n"], r["end_kst"], live=False))
+    print(f"snapshots.tsv: 되살린 회차 {', '.join(made) or '없음'}")
+
+
+# ---------- 회차 보고문(reports/) ----------
+def report_path(E, n):
+    return E.RESEARCH / "reports" / f"R-{int(n):02d}.md"
+
+
+def cmd_report(E, a):
+    log = read_log(E)
+    rows = [r for r in log if (not a.n or r["n"] == str(a.n)) and (not a.session or a.session.startswith(r["session"]))]
+    if not rows:
+        sys.exit("그 회차가 log.tsv 에 없다. 먼저 close 로 닫는다")
+    row = rows[-1]
+    text = Path(a.file).expanduser().read_text(encoding="utf-8").strip()
+    p = report_path(E, row["n"])
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(f"# R-{int(row['n']):02d} {row['end_kst'][:10]} {row['n']}회차 보고\n- 출처: {a.source or '회차가 쓴 보고'}\n\n{text}\n",
+                 encoding="utf-8")
+    print(f"{row['n']}회차 보고문을 {p.relative_to(E.ROOT)} 에 남겼다. {write_vault(E)}")
+
+
+# ---------- 볼트 사본(research/efficiency) ----------
+GEN = "generated: research-efficiency"
+
+
+def vault_link(text):
+    return ID.sub(lambda m: f"[[research/efficiency/ledger/{m.group(1)}-{m.group(2)}|{m.group(1)}-{m.group(2)}]]", text)
+
+
+def journal_name(r):
+    return f"journal/{r['start_kst'][:4]}/{r['start_kst'][5:7]}/{r['start_kst'][:10]} {int(r['n']):02d}회차"
+
+
+def vault_notes(E):
+    """볼트 사본 노트들: {볼트 폴더 안 상대 경로: 내용}."""
+    src = lambda rel: f"---\n{GEN}\nsource: {rel}\n---\n> 도구(research-efficiency)가 장부에서 만든 사본이다. 고치지 말고 장부 `~/.claude/skills/research-efficiency/research/{rel}` 를 고친다. ↑ [[research/index-guide|연구 지도]]\n\n"
+    notes = {}
+    for it in load_items(E):
+        rel = f"{KINDS[it['id'][0]][0]}/{it['id']}.md"
+        notes[f"ledger/{it['id']}.md"] = src(rel) + vault_link(it["text"])
+    kn = E.RESEARCH / "knowledge.md"
+    if kn.exists():
+        notes["knowledge.md"] = src("knowledge.md") + vault_link(kn.read_text(encoding="utf-8"))
+    log = read_log(E)
+    for i, r in enumerate(log):
+        nav = " · ".join(f"[[research/efficiency/{journal_name(x)}|{lab}]]" for x, lab in
+                         ((log[i - 1] if i else None, f"← {int(r['n']) - 1}회차"), (log[i + 1] if i + 1 < len(log) else None, f"{int(r['n']) + 1}회차 →")) if x)
+        learned = re.sub(r" / (?=(기록|스킬): )", "\n- ", r.get("learned") or "")
+        nxt = re.sub(r"\s(?=\d+\) )", "\n", r.get("next") or "")
+        body = [f"# {r['n']}회차 · {r['kind']} · {r['start_kst']}~{r['end_kst'][11:]}",
+                f"- 초점: {r['focus']}", f"- 세션: {r['session']}",
+                f"- 다룬 항목: {vault_link(r.get('ids') or '') or '없음'}",
+                f"- 든 값: 본 대화 호출 {r['calls']} · 서브에이전트 호출 {r['sub_calls']} · 누적 입력 {int(r['cum_in'] or 0):,} · 출력 {int(r['out'] or 0):,}"
+                f" · 정가 환산 ${r['usd']} · 기준 단가 환산 ${r['ref_usd']}",
+                f"- 앞뒤: {nav}" if nav else "", "", "## 한 일", vault_link(r.get("did") or ""), "",
+                "## 닫기 전에 검증하고 배운 것", ("- " + vault_link(learned)) if learned else "(적지 않은 회차)", "",
+                "## 다음에 할 일", vault_link(nxt) or "(적지 않은 회차)"]
+        rp = report_path(E, r["n"])
+        if rp.exists():
+            lines = rp.read_text(encoding="utf-8").splitlines()
+            body += ["", "## 보고", lines[1] if len(lines) > 1 else "", ""] + [vault_link(x) for x in lines[3:]]
+        notes[journal_name(r) + ".md"] = src(f"log.tsv ({r['n']}회차)" + (f", reports/{rp.name}" if rp.exists() else "")) + "\n".join(body) + "\n"
+    runs = [r for r in E.read_tsv(E.RESEARCH / "runs.tsv") if "진행 중" not in r.get("note", "")]
+    for month in sorted({r["start_kst"][:7] for r in runs}):
+        rs = [r for r in runs if r["start_kst"][:7] == month]
+        tbl = ["| 스킬 | 횟수 | 기준 단가 환산 중앙값 | 합 | 정가 환산 중앙값 | 합 | 모델 |", "|---|---|---|---|---|---|---|"]
+        for skill in sorted({r["skill"] for r in rs}):
+            s = [r for r in rs if r["skill"] == skill]
+            models = ", ".join(f"{m.replace('claude-', '')} {c}" for m, c in Counter(r["model"] for r in s).most_common())
+            tbl.append(f"| {skill} | {len(s)} | ${med(s, 'total_ref_usd'):.2f} | ${sum(float(r['total_ref_usd'] or 0) for r in s):.2f}"
+                       f" | ${med(s, 'total_usd'):.2f} | ${sum(float(r['total_usd'] or 0) for r in s):.2f} | {models} |")
+        week = lambda r: "W%02d" % datetime.strptime(r["start_kst"][:10], "%Y-%m-%d").isocalendar()[1]
+        wk = ["| 주 | 스킬 | 횟수 | 기준 단가 환산 중앙값 | 서브 호출 중앙값 |", "|---|---|---|---|---|"]
+        for w in sorted({week(r) for r in rs}):
+            for skill in sorted({r["skill"] for r in rs if week(r) == w}):
+                s = [r for r in rs if week(r) == w and r["skill"] == skill]
+                wk.append(f"| {w} | {skill} | {len(s)} | ${med(s, 'total_ref_usd'):.2f} | {med(s, 'sub_calls'):g} |")
+        notes[f"measure/{month}.md"] = src(f"runs.tsv ({month})") + f"# {month} 스킬 실행 측정\n\n진행 중으로 적힌 줄은 뺐다. 지표 뜻은 스킬의 `reference/metrics.md`.\n\n## 스킬별\n" + "\n".join(tbl) + "\n\n## 주별\n" + "\n".join(wk) + "\n"
+    snaps = E.read_tsv(E.RESEARCH / "snapshots.tsv")
+    if snaps:
+        val = {(r["n"], r["metric"], r["key"]): r["value"] for r in snaps}
+        ns = sorted({r["n"] for r in snaps}, key=int)
+        kinds = {r["n"]: (r["kind"], r["end_kst"][:10]) for r in log}
+        skills = sorted({r["key"] for r in snaps if r["metric"] == "skill.ref_median_30d"})
+        g = lambda n, m, k="-": val.get((n, m, k), "")
+        opened = lambda n: str(sum(int(val[(n, "items.D", s)]) for s in OPEN["D"])) if (n, "items.D", "후보") in val else ""
+        head = ["회차", "날짜", "종류", "회차 값", "연구 누적", "사실 유효", "열린 방향", "판정 대기"] + [f"{s} 30일 중앙값" for s in skills]
+        rows = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
+        for n in ns:
+            rows.append("| " + " | ".join([n, kinds.get(n, ("", ""))[1], kinds.get(n, ("", ""))[0], g(n, "lab.round_ref"), g(n, "lab.ref_cum"),
+                                            g(n, "items.F", "유효"), opened(n), g(n, "items.A", "측정 대기")]
+                                           + [g(n, "skill.ref_median_30d", s) for s in skills]) + " |")
+        atts = sorted({r["key"] for r in snaps if r["metric"] == "attempt.runs_after"}, key=num)
+        arows = ["| 회차 | " + " | ".join(f"{x} 실행 수 · 정가 중앙값" for x in atts) + " |", "|---|" + "---|" * len(atts)]
+        for n in ns:
+            arows.append(f"| {n} | " + " | ".join(f"{g(n, 'attempt.runs_after', x)} · {g(n, 'attempt.usd_median_after', x)}" if g(n, "attempt.runs_after", x) else "" for x in atts) + " |")
+        notes["trend.md"] = (src("snapshots.tsv") + "# 회차마다 바뀐 결과\n\n회차를 닫을 때 도구가 적은 수치다(값은 기준 단가 환산 $). 지난 회차(src=backfill)는 runs.tsv 와 log.tsv 로 되살려 항목 수가 비어 있다. "
+                             "수치로 볼 원본은 장부 `snapshots.tsv`(열 n, end_kst, metric, key, value, src)이고 지표 뜻은 스킬의 `reference/metrics.md` 의 '회차 결과 수치' 다.\n\n## 연구실과 스킬\n"
+                             + "\n".join(rows) + "\n\n## 시도의 바꾼 뒤 실행\n" + ("\n".join(arows) if atts else "없음") + "\n")
+    return notes
+
+
+def write_vault(E, out=None):
+    """볼트 사본을 다시 만든다. 사본 평가(스킬 이름이 다르다)나 볼트가 없는 컴퓨터에서는 --out 을 주지 않으면 쓰지 않는다."""
+    if out is None:
+        if E.ROOT.name != "research-efficiency" or not E.VAULT.exists():
+            return "볼트 사본은 만들지 않았다(사본 평가이거나 볼트가 없다)."
+        out = E.VAULT / "research" / "efficiency"
+    out = Path(out)
+    notes = vault_notes(E)
+    for rel, text in notes.items():
+        p = out / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if not p.exists() or p.read_text(encoding="utf-8") != text:
+            p.write_text(text, encoding="utf-8")
+    gone = [p for p in out.rglob("*.md") if str(p.relative_to(out)) not in notes and GEN in p.read_text(encoding="utf-8")[:200]]
+    for p in gone:
+        p.unlink()
+    return f"볼트 사본 {len(notes)}개를 맞췄다({out}){f', 지운 사본 {len(gone)}개' if gone else ''}."
+
+
+def cmd_vault(E, a):
+    print(write_vault(E, a.out))
 
 
 def register(sub, E):
@@ -515,3 +707,6 @@ def register(sub, E):
         (("--did",), {"required": True}), (("--next",), {"required": True}), (("--ids",), {}),
         (("--check-directions",), {}), (("--check-records",), {}), (("--check-skill",), {}),
         (("--session",), {}), (("--since",), {}), (("--until",), {}))
+    add("report", cmd_report, (("--file",), {"required": True}), (("--n",), {"type": int}), (("--session",), {}), (("--source",), {}))
+    add("snapshot", cmd_snapshot)
+    add("vault", cmd_vault, (("--out",), {}))
