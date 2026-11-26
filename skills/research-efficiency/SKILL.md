@@ -60,7 +60,7 @@ allowed-tools: Bash(python3 -B ${CLAUDE_SKILL_DIR}/scripts/efficiency.py *)
 
 재는 명령
 - `runs --days N --save`: 스킬 실행을 재서 runs.tsv 에 옮긴다. 다시 잰 줄은 새 값으로 바뀐다. `runs --session ID --skill 이름` 은 한 세션의 실행을 자세히 낸다.
-- `stats --skill 이름 --since 날짜 --until 날짜`: runs.tsv 의 구간별 중앙값. 바꾸기 전후를 견줄 때 쓴다. `--model`, `--ctx-below`, `--ctx-above`, `--session`, `--not-session` 으로 조건이 비슷한 실행만 고른다. 멈춘 실행이나 요청 종류가 다른 실행 하나는 `--not-run "YYYY-MM-DD HH:MM"` 으로 시작 시각을 줘서 뺀다.
+- `stats --skill 이름 --since 날짜 --until 날짜`: runs.tsv 의 구간별 중앙값. 바꾸기 전후를 견줄 때 쓴다. `--model`, `--ctx-below`, `--ctx-above`, `--session`, `--not-session` 으로 조건이 비슷한 실행만 고른다. 멈춘 실행이나 요청 종류가 다른 실행 하나는 `--not-run "YYYY-MM-DD HH:MM"` 으로 시작 시각을 줘서 뺀다. 끝에 기준 단가 구성(본 대화와 서브, 서브 안의 캐시 읽기·쓰기·출력)과 서브에이전트가 맥락을 캐시에 다시 쓴 실행을 낸다.
 - `trend --skill 이름`: 달마다(`--by week` 는 주마다)의 추이. 쌓인 측정으로 나아지는지 본다.
 - `carry --session ID --skill 이름` (서브에이전트는 `--agent ID`): 한 실행에서 맥락에 들어온 것과 그것을 다시 읽은 값. 어디를 줄일지 찾을 때 쓴다. `--list` 는 호출을 차례대로 낸다(맥락, 출력, 도구).
 - `after --session ID --skill 이름`: 실행 뒤의 사용자 발언. 정정 요청 수를 세는 품질 확인에 쓴다.

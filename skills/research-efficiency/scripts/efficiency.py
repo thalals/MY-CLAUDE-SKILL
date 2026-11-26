@@ -6,7 +6,7 @@
                                                     스킬 실행 한 번의 호출 수, 맥락, 종류별 토큰(본 대화 + 서브에이전트)
   efficiency.py stats --skill 이름 ... [--since 날짜] [--until 날짜] [--model 이름일부] [--ctx-below N] [--ctx-above N]
                       [--session ID ...] [--not-session ID ...] [--not-run "YYYY-MM-DD HH:MM" ...]
-                                                    runs.tsv 의 구간별 중앙값·최소·최대(바꾸기 전후 비교).
+                                                    runs.tsv 의 구간별 중앙값·최소·최대(바꾸기 전후 비교)와 기준 단가 구성.
                                                     날짜는 "YYYY-MM-DD HH:MM" 까지 줄 수 있고 --until 날짜는 그 날 0시 전까지다
   efficiency.py trend --skill 이름 ... [--by month|week]
                                                     runs.tsv 의 기간별 추이(쌓인 측정으로 나아지는지 본다)
@@ -27,10 +27,14 @@
 지표 정의와 함정은 reference/metrics.md, 장부 형식은 reference/ledger.md 에 있다. 출력에는 명령 설명이 섞이므로 장부에는 숫자만 옮긴다.
 """
 import argparse
+import contextlib
+import fcntl
 import json
+import os
 import re
 import statistics
 import sys
+import tempfile
 import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -362,6 +366,22 @@ def append_tsv(p, cols, rows):
             fh.write("\t".join(str(r.get(c, "")) for c in cols) + "\n")
 
 
+@contextlib.contextmanager
+def ledger_lock():
+    """같은 때에 열린 두 회차가 장부를 읽고 고쳐 쓰는 사이에 끼어들지 않게 잠근다. 잠금 파일은 장부 밖(임시 폴더)에 둔다."""
+    with open(Path(tempfile.gettempdir()) / "research-efficiency-ledger.lock", "w") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        yield
+
+
+def rewrite_tsv(p, cols, rows):
+    """파일을 통째로 바꿔 쓴다. 옆에 쓴 뒤 이름을 바꾸므로 읽는 쪽이 빈 파일을 보는 틈이 없다."""
+    tmp = p.with_name(p.name + ".tmp")
+    tmp.unlink(missing_ok=True)
+    append_tsv(tmp, cols, rows)
+    os.replace(tmp, p)
+
+
 def find_session(arg):
     p = Path(arg).expanduser()
     if p.is_file():
@@ -408,14 +428,14 @@ def cmd_runs(a):
               f" 기준 단가 환산 중앙값 ${statistics.median(float(r['total_ref_usd']) for r in rs):.2f}")
     if a.save:
         key = lambda r: (r["start_kst"], r["skill"])
-        old, fresh = read_tsv(RESEARCH / "runs.tsv"), {key(r): r for r in rows}
-        for r in old:
-            r["mv"] = r.get("mv") or "1"
-        same = [r for r in old if key(r) in fresh]
-        changed = sum(1 for r in same if any(str(fresh[key(r)].get(c, "")) != r.get(c, "") for c in RUN_COLS))
-        merged = sorted([r for r in old if key(r) not in fresh] + list(fresh.values()), key=key)
-        (RESEARCH / "runs.tsv").unlink(missing_ok=True)
-        append_tsv(RESEARCH / "runs.tsv", RUN_COLS, merged)
+        with ledger_lock():
+            old, fresh = read_tsv(RESEARCH / "runs.tsv"), {key(r): r for r in rows}
+            for r in old:
+                r["mv"] = r.get("mv") or "1"
+            same = [r for r in old if key(r) in fresh]
+            changed = sum(1 for r in same if any(str(fresh[key(r)].get(c, "")) != r.get(c, "") for c in RUN_COLS))
+            merged = sorted([r for r in old if key(r) not in fresh] + list(fresh.values()), key=key)
+            rewrite_tsv(RESEARCH / "runs.tsv", RUN_COLS, merged)
         print(f"runs.tsv: 새로 {len(fresh) - len(same)}줄, 값이 바뀐 {changed}줄, 모두 {len(merged)}줄")
 
 
@@ -444,6 +464,24 @@ def cmd_stats(a):
         v = sorted(float(r[col] or 0) for r in rows)
         f = (lambda x: f"{x:,.2f}") if col.endswith("usd") else (lambda x: f"{int(x):,}")
         print(f"  {label}: 중앙값 {f(statistics.median(v))} · 최소 {f(v[0])} · 최대 {f(v[-1])} · 합 {f(sum(v))}")
+    # 기준 단가 구성. 본 대화 쓰기는 1시간, 서브 쓰기는 5분 단가로 친다. 서브의 안 실린 입력은 캐시 읽기에 섞인다(수십 토큰).
+    inp, w5, w1h, rd, out = REF
+    g = lambda col: sum(float(r[col] or 0) for r in rows) / 1e6
+    m_read, m_write, m_out = g("main_read") * rd, g("main_write") * w1h, g("main_out") * out
+    m_in = (g("main_cum") - g("main_read") - g("main_write")) * inp
+    s_read, s_write, s_out = (g("sub_cum") - g("sub_write")) * rd, g("sub_write") * w5, g("sub_out") * out
+    main, sub = m_in + m_read + m_write + m_out, s_read + s_write + s_out
+    pct = lambda x, t: f"{x / t:.0%}" if t else "-"
+    print(f"  기준 단가 구성(합): 본 대화 ${main:,.2f}({pct(main, main + sub)}) · 서브 ${sub:,.2f}({pct(sub, main + sub)})"
+          f" · 서브 안 캐시 읽기 {pct(s_read, sub)} · 캐시 쓰기 {pct(s_write, sub)} · 출력 {pct(s_out, sub)}"
+          f"(출력의 생각 {pct(g('sub_think'), g('sub_out'))})")
+    over = [r for r in rows if float(r["sub_ctx_max"] or 0) and int(r["sub_n"] or 0) == 1
+            and float(r["sub_write"] or 0) > 1.5 * float(r["sub_ctx_max"])]
+    if over:
+        extra = sum(float(r["sub_write"]) - float(r["sub_ctx_max"]) for r in over) / 1e6 * w5
+        print(f"  서브에이전트 1개인데 캐시 쓰기가 최대 맥락의 1.5배를 넘은 실행 {len(over)}번: "
+              + ", ".join(f"{r['start_kst'][:16]}({float(r['sub_write']) / float(r['sub_ctx_max']):.2f}배)" for r in over)
+              + f". 최대 맥락을 넘은 쓰기 ${extra:,.2f}({pct(extra, main + sub)})")
 
 
 def cmd_trend(a):

@@ -481,15 +481,15 @@ def cmd_close(E, a):
     inside = lambda c: t0 <= (c["ts"] or "")[:19] <= t1
     m = E.agg([c for c in E.calls_of(rows) if inside(c)])
     s = E.agg([c for sub in E.subagents(path).values() for c in E.calls_of(E.load(sub["path"]), main=False) if inside(c)])
-    log, key = read_log(E), (path.stem[:8], start)
-    old = next((r for r in log if (r["session"], r["start_kst"]) == key), None)
-    row = {"n": old["n"] if old else max((int(r["n"]) for r in log), default=0) + 1, "start_kst": start, "end_kst": end,
-           "session": key[0], "kind": a.kind, "focus": clean(a.focus), "ids": ", ".join(named), "did": clean(a.did),
-           "learned": " / ".join(f"{k}: {v}" for k, v in checks if v), "next": clean(a.next), "calls": m["n"], "sub_calls": s["n"],
-           "cum_in": m["cum"] + s["cum"], "out": m["out"] + s["out"], "usd": f"{m['usd'] + s['usd']:.2f}", "ref_usd": f"{m['ref'] + s['ref']:.2f}"}
-    p = E.RESEARCH / "log.tsv"
-    p.unlink(missing_ok=True)
-    E.append_tsv(p, LOG_COLS, sorted([r for r in log if r is not old] + [row], key=lambda r: int(r["n"])))
+    key = (path.stem[:8], start)
+    with E.ledger_lock():  # 같은 때에 닫는 다른 회차가 같은 번호를 받거나 줄을 지우지 않게 읽기부터 쓰기까지 잠근다
+        log = read_log(E)
+        old = next((r for r in log if (r["session"], r["start_kst"]) == key), None)
+        row = {"n": old["n"] if old else max((int(r["n"]) for r in log), default=0) + 1, "start_kst": start, "end_kst": end,
+               "session": key[0], "kind": a.kind, "focus": clean(a.focus), "ids": ", ".join(named), "did": clean(a.did),
+               "learned": " / ".join(f"{k}: {v}" for k, v in checks if v), "next": clean(a.next), "calls": m["n"], "sub_calls": s["n"],
+               "cum_in": m["cum"] + s["cum"], "out": m["out"] + s["out"], "usd": f"{m['usd'] + s['usd']:.2f}", "ref_usd": f"{m['ref'] + s['ref']:.2f}"}
+        E.rewrite_tsv(E.RESEARCH / "log.tsv", LOG_COLS, sorted([r for r in log if r is not old] + [row], key=lambda r: int(r["n"])))
     print(f"{row['n']}회차를 닫았다{'(고쳐 씀)' if old else ''}: 세션 {key[0]} · {start}~{end[11:]} · {a.kind} · 초점 {row['focus']}")
     print(f"  이 회차에 든 것: 본 대화 호출 {m['n']} · 서브에이전트 호출 {s['n']} · 누적 입력 {row['cum_in']:,} · 출력 {row['out']:,}"
           f" · 정가 환산 ${row['usd']} · 기준 단가 환산 ${row['ref_usd']}" + (" · 가격 모르는 모델 있음" if m["unpriced"] + s["unpriced"] else ""))
